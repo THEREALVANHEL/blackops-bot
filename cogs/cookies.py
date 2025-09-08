@@ -35,10 +35,6 @@ class Cookies(commands.Cog):
     @app_commands.describe(amount="The amount of cookies to give everyone.")
     @permissions.is_cookies_manager()
     async def cookies_give_all(self, interaction: discord.Interaction, amount: int):
-        # This is a powerful command, so we will use a database function to update everyone
-        # For simplicity, we will simulate a loop over all users
-        # The database.py file has a get_user_data that will create a user if they don't exist
-        
         guild_members = interaction.guild.members
         users_updated = 0
         
@@ -53,7 +49,6 @@ class Cookies(commands.Cog):
     @app_commands.describe(amount="The amount of cookies to remove from everyone.")
     @permissions.is_cookies_manager()
     async def remove_cookies_all(self, interaction: discord.Interaction, amount: int):
-        # Similar to the giveall command, but removes cookies.
         guild_members = interaction.guild.members
         users_updated = 0
         
