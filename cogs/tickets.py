@@ -4,6 +4,7 @@ from discord import app_commands
 import permissions
 import database
 import os
+import asyncio
 
 class TicketView(discord.ui.View):
     def __init__(self):
@@ -26,8 +27,15 @@ class TicketView(discord.ui.View):
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             member: discord.PermissionOverwrite(view_channel=True, send_messages=True, attach_files=True),
-            guild.get_role(int(os.getenv("MODERATOR_ROLE_ID"))): discord.PermissionOverwrite(view_channel=True, send_messages=True, attach_files=True)
         }
+        
+        # Try to get moderator role, but don't fail if it doesn't exist
+        try:
+            moderator_role = guild.get_role(int(os.getenv("MODERATOR_ROLE_ID")))
+            if moderator_role:
+                overwrites[moderator_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, attach_files=True)
+        except (ValueError, TypeError):
+            pass
         
         ticket_channel = await guild.create_text_channel(
             name=f"ticket-{member.id}",
@@ -66,5 +74,5 @@ class Tickets(commands.Cog):
         await channel.delete()
 
 
-async def setup(bot: commands.Cog):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Tickets(bot))
