@@ -140,17 +140,5 @@ class Economy(commands.Cog):
             await interaction.followup.send(f"😔 You lost the coinflip and lost **{amount}** coins. Your new balance is {user_data['coins'] - amount:,}.")
 
 
-async def setup(bot: commands.Cog):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Economy(bot))
-    ```
-
-### **2. MongoDB Connection**
-
-Your most recent log shows that the MongoDB connection was successful! This means the previous issues with DNS and the `Improper token` have been resolved. The bot is now correctly connecting to your database and will be able to save and retrieve user data.
-
-### **3. Syncing the Commands**
-
-After you replace the `cogs/economy.py` file with the corrected code above, the `TypeError` will be gone. The next time you run your sync script, it will be able to load all the cogs, and your commands will successfully sync to Discord.
-
-**Next Step:** Replace the file and run the sync script again.
-`python3 force_sync_commands.py`
