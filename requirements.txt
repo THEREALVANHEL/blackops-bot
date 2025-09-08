@@ -1,0 +1,5 @@
+discord.py
+pymongo
+motor
+google-generativeai
+python-dotenv
