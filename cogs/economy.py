@@ -77,8 +77,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="buy", description="Purchase temporary items with coins.")
     @app_commands.describe(
-        item="The item you want to purchase.",
-        duration="The duration of the item (e.g., '1h', '24h')."
+        item="The item you want to purchase."
     )
     @app_commands.choices(
         item=[
@@ -141,5 +140,5 @@ class Economy(commands.Cog):
             await interaction.followup.send(f"😔 You lost the coinflip and lost **{amount}** coins. Your new balance is {user_data['coins'] - amount:,}.")
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Cog):
     await bot.add_cog(Economy(bot))
