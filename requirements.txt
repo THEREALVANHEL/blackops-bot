@@ -3,3 +3,4 @@ pymongo
 motor
 google-generativeai
 python-dotenv
+flask
