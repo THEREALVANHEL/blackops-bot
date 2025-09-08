@@ -4,4 +4,4 @@ motor
 google-generativeai
 python-dotenv
 flask
-unicorn
+gunicorn
