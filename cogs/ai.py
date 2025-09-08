@@ -4,6 +4,7 @@ from discord.ext import commands
 from discord import app_commands
 import google.generativeai as genai
 from dotenv import load_dotenv
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -27,7 +28,12 @@ class AI(commands.Cog):
             model = genai.GenerativeModel('gemini-pro')
             system_prompt = "Act as a smart-aleck, know-it-all nephew named BleckNephew. Your answers should be brief, a little sarcastic, and end with a condescending tone."
             
-            response = await model.generate_content(f"{system_prompt}\n\nQuestion: {question}")
+            # Use asyncio to run the sync function in a thread pool
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None, 
+                lambda: model.generate_content(f"{system_prompt}\n\nQuestion: {question}")
+            )
             
             await interaction.followup.send(response.text)
             
@@ -47,12 +53,22 @@ class AI(commands.Cog):
         try:
             chat = conversation_history[user_id].start_chat(history=[])
             
-            response = chat.send_message(message)
+            # Use asyncio to run the sync function in a thread pool
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None, 
+                lambda: chat.send_message(message)
+            )
             
             await interaction.followup.send(response.text)
             
         except Exception as e:
             await interaction.followup.send(f"An error occurred: {e}")
+
+    async def cog_unload(self):
+        """Clean up when the cog is unloaded"""
+        # Clear conversation history to free memory
+        conversation_history.clear()
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(AI(bot))
