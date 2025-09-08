@@ -6,6 +6,7 @@ import database
 import permissions
 from flask import Flask, jsonify, request
 from threading import Thread
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -45,16 +46,41 @@ async def load_cogs():
         except Exception as e:
             print(f"❌ Failed to load cog {cog}: {e}")
 
+@bot.event
+async def on_ready():
+    print(f'✅ Bot connected as {bot.user.name}')
+    print(f'📊 Bot is in {len(bot.guilds)} guilds')
+    
+    # Load cogs when bot is ready
+    await load_cogs()
+    
+    # Sync commands to your specific server
+    try:
+        guild = discord.Object(id=int(os.getenv("SERVER_ID")))
+        synced = await bot.tree.sync(guild=guild)
+        print(f"🔄 Synced {len(synced)} commands to guild {guild.id}")
+    except Exception as e:
+        print(f"❌ Failed to sync commands: {e}")
+
 # Flask route for health check
 @app.route('/')
 def home():
     return "Bot is running!", 200
 
-# The rest of your command definitions should remain the same
+@app.route('/status')
+def status():
+    return jsonify({
+        "status": "online",
+        "guilds": len(bot.guilds),
+        "latency": round(bot.latency * 1000, 2)
+    })
 
-if __name__ == '__main__':
+async def main():
     # Start the Flask server in a separate thread
     Thread(target=lambda: app.run(host='0.0.0.0', port=int(os.getenv("PORT", 5000)))).start()
+    
+    # Start the bot
+    await bot.start(os.getenv("DISCORD_BOT_TOKEN"))
 
-    # Run the bot
-    bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+if __name__ == '__main__':
+    asyncio.run(main())
