@@ -4,6 +4,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import database
 import permissions
+from flask import Flask, jsonify, request
+import threading
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +17,9 @@ intents.message_content = True
 
 # Create the bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Create Flask app
+app = Flask(__name__)
 
 # Load cogs from the 'cogs' folder
 async def load_cogs():
@@ -36,6 +41,15 @@ async def load_cogs():
             print(f"✅ Loaded cog: {cog}")
         except Exception as e:
             print(f"❌ Failed to load cog {cog}: {e}")
+
+# Flask route for health check
+@app.route('/')
+def home():
+    return "Bot is running!", 200
+
+def run_flask_server():
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
 @bot.event
 async def on_ready():
@@ -84,14 +98,21 @@ async def db_health(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("Database status: **Disconnected** (Using Memory Storage)", ephemeral=True)
 
-@bot.tree.command(name="sync", description="Force sync all slash commands.")
+@bot.tree.command(name="sync", description="Force sync all slash commands to the server.")
 @discord.app_commands.default_permissions(administrator=True)
 async def sync_commands(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
     try:
-        await bot.tree.sync(guild=discord.Object(id=int(os.getenv("SERVER_ID"))))
-        await interaction.response.send_message("Commands synced!", ephemeral=True)
+        guild_id = int(os.getenv("SERVER_ID"))
+        synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
+        await interaction.followup.send(f"✅ Synced **{len(synced)}** commands.", ephemeral=True)
     except Exception as e:
-        await interaction.response.send_message(f"Failed to sync commands: {e}", ephemeral=True)
+        await interaction.followup.send(f"❌ Failed to sync commands: {e}", ephemeral=True)
 
-# Run the bot
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+
+if __name__ == '__main__':
+    # Run the Flask server in a separate thread
+    threading.Thread(target=run_flask_server).start()
+    
+    # Run the bot
+    bot.run(os.getenv("DISCORD_BOT_TOKEN"))
