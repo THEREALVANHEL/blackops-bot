@@ -20,7 +20,7 @@ class Economy(commands.Cog):
     async def balance(self, interaction: discord.Interaction, user: discord.Member = None):
         target_user = user or interaction.user
         user_data = database.db.get_user_data(target_user.id)
-
+        
         coins = user_data.get("coins", 0)
         cookies = user_data.get("cookies", 0)
 
@@ -31,19 +31,19 @@ class Economy(commands.Cog):
         embed.add_field(name="Shiny Coins", value=f"💰 {coins:,}", inline=False)
         embed.add_field(name="Delicious Cookies", value=f"🍪 {cookies:,}", inline=False)
         embed.set_footer(text="Permission: Everyone")
-
+        
         await interaction.response.send_message(embed=embed)
-
+        
     @app_commands.command(name="work", description="Independent career progression system - work your way up!")
     async def work(self, interaction: discord.Interaction):
         user_id = interaction.user.id
-
+        
         if not database.db.can_work(user_id):
             await interaction.response.send_message("You are still on cooldown! You can work again in an hour.", ephemeral=True)
             return
 
         earnings = random.randint(100, 500)
-
+        
         result = database.db.process_work(user_id, "Standard Job", earnings)
 
         if result["success"]:
@@ -64,7 +64,7 @@ class Economy(commands.Cog):
             description="Purchase temporary boosts and items with your coins!",
             color=discord.Color.blue()
         )
-
+        
         for item, details in SHOP_ITEMS.items():
             duration_hours = int(details["duration"] / 3600)
             embed.add_field(
@@ -72,7 +72,7 @@ class Economy(commands.Cog):
                 value=f"**Price:** 💰 {details['price']:,}\n**Duration:** {duration_hours} hours",
                 inline=False
             )
-
+        
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="buy", description="Purchase temporary items with coins.")
@@ -88,12 +88,12 @@ class Economy(commands.Cog):
     async def buy(self, interaction: discord.Interaction, item: str):
         user_id = interaction.user.id
         user_data = database.db.get_user_data(user_id)
-
+        
         item_details = SHOP_ITEMS.get(item)
         if not item_details:
             await interaction.response.send_message("That item does not exist in the shop.", ephemeral=True)
             return
-
+            
         cost = item_details["price"]
         duration = item_details["duration"]
 
@@ -111,7 +111,7 @@ class Economy(commands.Cog):
             color=discord.Color.green()
         )
         embed.set_footer(text=f"The item will last for {int(duration / 3600)} hours.")
-
+        
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="coinflip", description="Flip a coin and bet coins.")
@@ -123,15 +123,15 @@ class Economy(commands.Cog):
         if amount <= 0:
             await interaction.response.send_message("You must bet a positive amount of coins.", ephemeral=True)
             return
-
+            
         if user_data["coins"] < amount:
             await interaction.response.send_message("You don't have enough coins for that bet.", ephemeral=True)
             return
 
         await interaction.response.defer()
-
+        
         outcome = random.choice(["win", "lose"])
-
+        
         if outcome == "win":
             database.db.add_coins(user_id, amount)
             await interaction.followup.send(f"🪙 You won the coinflip and gained **{amount}** coins! Your new balance is {user_data['coins'] + amount:,}.")
@@ -142,3 +142,15 @@ class Economy(commands.Cog):
 
 async def setup(bot: commands.Cog):
     await bot.add_cog(Economy(bot))
+    ```
+
+### **2. MongoDB Connection**
+
+Your most recent log shows that the MongoDB connection was successful! This means the previous issues with DNS and the `Improper token` have been resolved. The bot is now correctly connecting to your database and will be able to save and retrieve user data.
+
+### **3. Syncing the Commands**
+
+After you replace the `cogs/economy.py` file with the corrected code above, the `TypeError` will be gone. The next time you run your sync script, it will be able to load all the cogs, and your commands will successfully sync to Discord.
+
+**Next Step:** Replace the file and run the sync script again.
+`python3 force_sync_commands.py`
