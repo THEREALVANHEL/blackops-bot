@@ -3,9 +3,12 @@ from discord.ext import commands
 from discord import app_commands
 import database
 import time
-import random  # ADDED: Missing import
+import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+
+# Import the new UI components
+from ui_components import EmbedBuilder, BotColors, LeaderboardView
 
 class ProfileView(discord.ui.View):
     """Interactive view for user profiles"""
@@ -23,10 +26,10 @@ class ProfileView(discord.ui.View):
         user_data = database.db.get_user_data(self.target_user_id)
         achievements = user_data.get("achievements", [])
         
-        embed = discord.Embed(
+        embed = EmbedBuilder.create_embed(
             title="🏆 User Achievements",
-            color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            color=BotColors.PREMIUM,
+            timestamp=True
         )
         
         if achievements:
@@ -43,10 +46,10 @@ class ProfileView(discord.ui.View):
     async def show_detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_data = database.db.get_user_data(self.target_user_id)
         
-        embed = discord.Embed(
+        embed = EmbedBuilder.create_embed(
             title="📊 Detailed Statistics",
-            color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            color=BotColors.INFO,
+            timestamp=True
         )
         
         # Economy stats
@@ -133,11 +136,9 @@ class CoreUserSystem(commands.Cog):
         
         greeting = greetings[0] if level == 1 and streak == 0 else random.choice(greetings)
         
-        embed = discord.Embed(
-            title="👋 Personal Greeting",
-            description=greeting,
-            color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+        embed = EmbedBuilder.success_embed(
+            title="Personal Greeting",
+            description=greeting
         )
         
         embed.add_field(name="📊 Quick Stats", 
@@ -169,10 +170,8 @@ class CoreUserSystem(commands.Cog):
         db_health = database.db.get_database_health()
         db_status = "🟢 Connected" if db_health["connected"] else "🟡 Memory Mode"
         
-        embed = discord.Embed(
-            title="🏓 Pong! System Status",
-            color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+        embed = EmbedBuilder.success_embed(
+            title="Pong! System Status"
         )
         
         embed.add_field(name="🤖 Bot Latency", value=f"`{bot_latency}ms`", inline=True)
@@ -193,17 +192,15 @@ class CoreUserSystem(commands.Cog):
             performance = "🔴 Poor"
         
         embed.add_field(name="📈 Performance", value=performance, inline=True)
-        
         embed.set_footer(text="All systems operational!")
+        
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="info", description="Comprehensive bot information and statistics.")
     async def info(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="🤖 BlackOps Bot Information",
-            description="A comprehensive Discord bot with economy, pets, jobs, and more!",
-            color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+        embed = EmbedBuilder.info_embed(
+            title="BlackOps Bot Information",
+            description="A comprehensive Discord bot with economy, pets, jobs, and more!"
         )
         
         # Bot owner info
@@ -242,64 +239,6 @@ class CoreUserSystem(commands.Cog):
         embed.set_footer(text="Thank you for using BlackOps Bot!")
         
         await interaction.response.send_message(embed=embed)
-        
-    @app_commands.command(name="serverinfo", description="Comprehensive server information and statistics.")
-    async def serverinfo(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        embed = discord.Embed(
-            title=f"🏰 {guild.name} Server Information",
-            color=discord.Color.green(),
-            timestamp=datetime.utcnow()
-        )
-        embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
-        
-        # Basic server info
-        embed.add_field(name="👑 Owner", value=guild.owner.mention if guild.owner else "Unknown", inline=True)
-        embed.add_field(name="👥 Members", value=f"`{guild.member_count:,}`", inline=True)
-        embed.add_field(name="🆔 Server ID", value=f"`{guild.id}`", inline=True)
-        
-        # Channel and role counts
-        embed.add_field(name="📺 Channels", value=f"`{len(guild.channels)}`", inline=True)
-        embed.add_field(name="🎭 Roles", value=f"`{len(guild.roles)}`", inline=True)
-        embed.add_field(name="😀 Emojis", value=f"`{len(guild.emojis)}`", inline=True)
-        
-        # Server statistics
-        online_members = len([m for m in guild.members if m.status != discord.Status.offline])
-        bot_count = len([m for m in guild.members if m.bot])
-        human_count = guild.member_count - bot_count
-        
-        embed.add_field(name="🟢 Online Members", value=f"`{online_members:,}`", inline=True)
-        embed.add_field(name="👤 Humans", value=f"`{human_count:,}`", inline=True)
-        embed.add_field(name="🤖 Bots", value=f"`{bot_count:,}`", inline=True)
-        
-        # Server features
-        features = []
-        if guild.premium_tier > 0:
-            features.append(f"💎 Nitro Level {guild.premium_tier}")
-        if guild.premium_subscription_count > 0:
-            features.append(f"🚀 {guild.premium_subscription_count} Boosts")
-        if guild.verification_level:
-            features.append(f"🔒 Verification: {guild.verification_level.name.title()}")
-        
-        if features:
-            embed.add_field(name="✨ Server Features", value="\n".join(features), inline=False)
-        
-        # Creation date and age
-        created_at = guild.created_at
-        days_old = (datetime.utcnow() - created_at.replace(tzinfo=None)).days
-        
-        embed.add_field(name="📅 Created", value=f"<t:{int(created_at.timestamp())}:F>", inline=True)
-        embed.add_field(name="🗓️ Age", value=f"`{days_old:,}` days old", inline=True)
-        
-        # Top roles (by member count)
-        top_roles = sorted([r for r in guild.roles if not r.is_default()], key=lambda r: len(r.members), reverse=True)[:3]
-        if top_roles:
-            roles_text = "\n".join([f"{role.mention} (`{len(role.members)}` members)" for role in top_roles])
-            embed.add_field(name="🎭 Top Roles", value=roles_text, inline=False)
-        
-        await interaction.response.send_message(embed=embed)
-
-    # ==================== LEVELING COMMANDS ====================
 
     @app_commands.command(name="profile", description="View comprehensive user profile with statistics.")
     @app_commands.describe(user="The user whose profile you want to view (optional).")
@@ -321,10 +260,9 @@ class CoreUserSystem(commands.Cog):
         xp_needed = next_level_xp - current_level_xp
         progress_percentage = (xp_progress / xp_needed) * 100
         
-        embed = discord.Embed(
+        embed = EmbedBuilder.create_embed(
             title=f"👤 {target_user.display_name}'s Profile",
-            color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            color=BotColors.PREMIUM
         )
         embed.set_thumbnail(url=target_user.display_avatar.url)
         
@@ -407,14 +345,32 @@ class CoreUserSystem(commands.Cog):
         view = ProfileView(interaction.user.id, target_user.id)
         await interaction.response.send_message(embed=embed, view=view)
 
+    @app_commands.command(name="leaderboard", description="View server leaderboards with enhanced pagination.")
+    @app_commands.describe(
+        type="The type of leaderboard to view."
+    )
+    @app_commands.choices(
+        type=[
+            discord.app_commands.Choice(name="⭐ XP & Levels", value="xp"),
+            discord.app_commands.Choice(name="🍪 Cookies", value="cookies"),
+            discord.app_commands.Choice(name="💰 Coins", value="coins"),
+            discord.app_commands.Choice(name="🔥 Daily Streaks", value="daily_streak"),
+            discord.app_commands.Choice(name="💼 Work Sessions", value="work_count")
+        ]
+    )
+    async def leaderboard(self, interaction: discord.Interaction, type: str):
+        # Create and send the leaderboard with interactive buttons
+        view = LeaderboardView(self.bot, interaction.guild.id, type, interaction.user.id)
+        embed = await view.create_leaderboard_embed(1)
+        await interaction.response.send_message(embed=embed, view=view)
+
     @app_commands.command(name="myitems", description="View your active items, boosts, and temporary purchases.")
     async def myitems(self, interaction: discord.Interaction):
         purchases = database.db.get_active_temporary_purchases(interaction.user.id)
         
-        embed = discord.Embed(
+        embed = EmbedBuilder.create_embed(
             title=f"✨ {interaction.user.display_name}'s Active Items",
-            color=discord.Color.purple(),
-            timestamp=datetime.utcnow()
+            color=BotColors.PREMIUM
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
@@ -424,7 +380,7 @@ class CoreUserSystem(commands.Cog):
                 value="You don't have any active boosts or items.\nVisit `/shop` to purchase some!",
                 inline=False
             )
-            embed.color = discord.Color.orange()
+            embed.color = BotColors.WARNING
         else:
             current_time = time.time()
             item_groups = {}
@@ -442,8 +398,6 @@ class CoreUserSystem(commands.Cog):
                 minutes = int((total_time_left % 3600) // 60)
                 
                 # Get item emoji and description
-                # Note: PREMIUM_SHOP_ITEMS would need to be imported from unified_economy
-                # For now, using default values
                 item_emoji = "✨"
                 item_description = "Special item"
                 
@@ -462,115 +416,58 @@ class CoreUserSystem(commands.Cog):
         embed.set_footer(text="Items expire automatically when time runs out")
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="leaderboard", description="View server leaderboards with enhanced pagination.")
-    @app_commands.describe(
-        type="The type of leaderboard to view.",
-        page="The page number to display."
-    )
-    @app_commands.choices(
-        type=[
-            discord.app_commands.Choice(name="⭐ XP & Levels", value="xp"),
-            discord.app_commands.Choice(name="🍪 Cookies", value="cookies"),
-            discord.app_commands.Choice(name="💰 Coins", value="coins"),
-            discord.app_commands.Choice(name="🔥 Daily Streaks", value="daily_streak"),
-            discord.app_commands.Choice(name="💼 Work Sessions", value="work_count"),
-            discord.app_commands.Choice(name="🏦 Net Worth", value="net_worth")
-        ]
-    )
-    async def leaderboard(self, interaction: discord.Interaction, type: str, page: int = 1):
-        if page < 1:
-            page = 1
-        
-        # Special handling for net worth (calculated field)
-        if type == "net_worth":
-            # For now, use coins as fallback since net worth requires calculation
-            leaderboard_data = database.db.get_paginated_leaderboard("coins", page)
-            title = "💎 Net Worth Leaderboard"
-            emoji = "💎"
-        elif type == "daily_streak":
-            leaderboard_data = database.db.get_streak_leaderboard(page)
-            title = "🔥 Daily Streaks Leaderboard"
-            emoji = "🔥"
-        else:
-            leaderboard_data = database.db.get_paginated_leaderboard(type, page)
-            title_map = {
-                "xp": "⭐ XP & Levels Leaderboard",
-                "coins": "💰 Coins Leaderboard", 
-                "cookies": "🍪 Cookies Leaderboard",
-                "work_count": "💼 Work Sessions Leaderboard"
-            }
-            title = title_map.get(type, f"{type.title()} Leaderboard")
-            emoji_map = {"xp": "⭐", "coins": "💰", "cookies": "🍪", "work_count": "💼"}
-            emoji = emoji_map.get(type, "📊")
-
-        if not leaderboard_data['users']:
-            embed = discord.Embed(
-                title="📊 No Data Found",
-                description="No users found for this leaderboard category.",
-                color=discord.Color.orange()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
-        embed = discord.Embed(
-            title=f"{title} - Page {leaderboard_data['current_page']}/{leaderboard_data['total_pages']}",
-            color=discord.Color.purple(),
-            timestamp=datetime.utcnow()
+    @app_commands.command(name="serverinfo", description="Comprehensive server information and statistics.")
+    async def serverinfo(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        embed = EmbedBuilder.info_embed(
+            title=f"🏰 {guild.name} Server Information"
         )
-
-        leaderboard_text = ""
-        for i, entry in enumerate(leaderboard_data['users']):
-            user_id = entry.get("user_id", "Unknown User")
-            user = self.bot.get_user(user_id)
-            user_display_name = user.display_name if user else f"User {user_id}"
-            
-            # Get the value for display
-            if type == "net_worth":
-                # Calculate net worth on the fly
-                coins = entry.get("coins", 0)
-                bank = entry.get("bank", 0)
-                value = coins + bank
-            else:
-                value = entry.get(type, 0)
-            
-            rank = (leaderboard_data['current_page'] - 1) * leaderboard_data['members_per_page'] + i + 1
-            
-            # Special formatting for XP leaderboard
-            if type == "xp":
-                level = entry.get("level", 1)
-                leaderboard_text += f"`#{rank:2d}` **{user_display_name}** - Level {level} ({value:,} XP)\n"
-            else:
-                leaderboard_text += f"`#{rank:2d}` **{user_display_name}** - {emoji} {value:,}\n"
+        embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
         
-        embed.description = leaderboard_text
+        # Basic server info
+        embed.add_field(name="👑 Owner", value=guild.owner.mention if guild.owner else "Unknown", inline=True)
+        embed.add_field(name="👥 Members", value=f"`{guild.member_count:,}`", inline=True)
+        embed.add_field(name="🆔 Server ID", value=f"`{guild.id}`", inline=True)
         
-        # Add pagination info
-        embed.add_field(
-            name="📄 Navigation",
-            value=f"Page {leaderboard_data['current_page']} of {leaderboard_data['total_pages']}\nShowing {len(leaderboard_data['users'])} of {leaderboard_data['total_users']:,} users",
-            inline=True
-        )
+        # Channel and role counts
+        embed.add_field(name="📺 Channels", value=f"`{len(guild.channels)}`", inline=True)
+        embed.add_field(name="🎭 Roles", value=f"`{len(guild.roles)}`", inline=True)
+        embed.add_field(name="😀 Emojis", value=f"`{len(guild.emojis)}`", inline=True)
         
-        # Find user's rank if they're not on current page
-        user_data = database.db.get_user_data(interaction.user.id)
-        user_value = user_data.get(type, 0) if type != "net_worth" else user_data.get("coins", 0) + user_data.get("bank", 0)
+        # Server statistics
+        online_members = len([m for m in guild.members if m.status != discord.Status.offline])
+        bot_count = len([m for m in guild.members if m.bot])
+        human_count = guild.member_count - bot_count
         
-        if user_value > 0:
-            # Rough estimate of user's rank (not perfectly accurate but good enough)
-            user_rank = "Not ranked"
-            for i, entry in enumerate(leaderboard_data['users']):
-                if entry.get("user_id") == interaction.user.id:
-                    actual_rank = (leaderboard_data['current_page'] - 1) * leaderboard_data['members_per_page'] + i + 1
-                    user_rank = f"#{actual_rank}"
-                    break
-            
-            embed.add_field(
-                name="🎯 Your Stats",
-                value=f"**Rank:** {user_rank}\n**Score:** {emoji} {user_value:,}",
-                inline=True
-            )
+        embed.add_field(name="🟢 Online Members", value=f"`{online_members:,}`", inline=True)
+        embed.add_field(name="👤 Humans", value=f"`{human_count:,}`", inline=True)
+        embed.add_field(name="🤖 Bots", value=f"`{bot_count:,}`", inline=True)
         
-        embed.set_footer(text="Updated in real-time • Use different page numbers to navigate")
+        # Server features
+        features = []
+        if guild.premium_tier > 0:
+            features.append(f"💎 Nitro Level {guild.premium_tier}")
+        if guild.premium_subscription_count > 0:
+            features.append(f"🚀 {guild.premium_subscription_count} Boosts")
+        if guild.verification_level:
+            features.append(f"🔒 Verification: {guild.verification_level.name.title()}")
+        
+        if features:
+            embed.add_field(name="✨ Server Features", value="\n".join(features), inline=False)
+        
+        # Creation date and age
+        created_at = guild.created_at
+        days_old = (datetime.utcnow() - created_at.replace(tzinfo=None)).days
+        
+        embed.add_field(name="📅 Created", value=f"<t:{int(created_at.timestamp())}:F>", inline=True)
+        embed.add_field(name="🗓️ Age", value=f"`{days_old:,}` days old", inline=True)
+        
+        # Top roles (by member count)
+        top_roles = sorted([r for r in guild.roles if not r.is_default()], key=lambda r: len(r.members), reverse=True)[:3]
+        if top_roles:
+            roles_text = "\n".join([f"{role.mention} (`{len(role.members)}` members)" for role in top_roles])
+            embed.add_field(name="🎭 Top Roles", value=roles_text, inline=False)
+        
         await interaction.response.send_message(embed=embed)
 
     def _create_progress_bar(self, percentage: float, length: int = 10) -> str:
@@ -580,6 +477,29 @@ class CoreUserSystem(commands.Cog):
         
         bar = "█" * filled + "░" * empty
         return f"`{bar}` {percentage:.1f}%"
+
+    def _calculate_level_rewards(self, level: int) -> str:
+        """Calculate rewards for reaching a new level"""
+        rewards = []
+        
+        # Coin rewards
+        base_coins = level * 100
+        rewards.append(f"{base_coins} coins")
+        
+        # Special milestone rewards
+        if level % 10 == 0:  # Every 10 levels
+            rewards.append("Bonus XP boost")
+        
+        if level % 25 == 0:  # Every 25 levels
+            rewards.append("Lucky charm")
+            
+        if level == 50:
+            rewards.append("Premium shop access")
+            
+        if level == 100:
+            rewards.append("Legendary pet egg")
+        
+        return " + ".join(rewards) if rewards else "Experience and prestige!"
 
     # ==================== EVENT LISTENERS ====================
 
@@ -606,10 +526,10 @@ class CoreUserSystem(commands.Cog):
         
         # Level up notification
         if result.get("leveled_up"):
-            embed = discord.Embed(
+            embed = EmbedBuilder.create_embed(
                 title="🎉 Level Up!",
                 description=f"**{message.author.display_name}** reached level **{result['new_level']}**!",
-                color=discord.Color.gold()
+                color=BotColors.LEVEL_UP
             )
             embed.add_field(name="⭐ New Level", value=result["new_level"], inline=True)
             embed.add_field(name="📊 Total XP", value=f"{result['total_xp']:,}", inline=True)
@@ -628,29 +548,6 @@ class CoreUserSystem(commands.Cog):
                 await message.channel.send(embed=embed)
             except discord.Forbidden:
                 pass  # Can't send messages in this channel
-
-    def _calculate_level_rewards(self, level: int) -> str:
-        """Calculate rewards for reaching a new level"""
-        rewards = []
-        
-        # Coin rewards
-        base_coins = level * 100
-        rewards.append(f"{base_coins} coins")
-        
-        # Special milestone rewards
-        if level % 10 == 0:  # Every 10 levels
-            rewards.append("Bonus XP boost")
-        
-        if level % 25 == 0:  # Every 25 levels
-            rewards.append("Lucky charm")
-            
-        if level == 50:
-            rewards.append("Premium shop access")
-            
-        if level == 100:
-            rewards.append("Legendary pet egg")
-        
-        return " + ".join(rewards) if rewards else "Experience and prestige!"
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CoreUserSystem(bot))
