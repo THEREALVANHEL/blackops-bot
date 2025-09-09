@@ -1,3 +1,146 @@
+# This is the enhanced work command that should REPLACE the work command in economy.py
+# It integrates with the jobs system for career progression
+
+@app_commands.command(name="work", description="Work at your job to earn coins, XP, and advance your career!")
+async def work(self, interaction: discord.Interaction):
+    user_id = interaction.user.id
+    
+    if not database.db.can_work(user_id):
+        user_data = database.db.get_user_data(user_id)
+        next_work = user_data.get("last_work", 0) + 3600
+        embed = discord.Embed(
+            title="⏰ Still on Break!",
+            description=f"You can work again <t:{int(next_work)}:R>",
+            color=discord.Color.orange()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    user_data = database.db.get_user_data(user_id)
+    job_data = user_data.get("job", {})
+    
+    # Check if user has a job
+    if not job_data.get("career_path"):
+        embed = discord.Embed(
+            title="💼 No Job Found",
+            description="You need to get a job first before you can work!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="🚀 Get Started", value="Use `/career` to choose a career path and get hired!", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    # Get job information
+    career_path = job_data["career_path"]
+    current_level = job_data.get("current_level", 0)
+    work_xp = job_data.get("work_xp", 0)
+    performance = job_data.get("performance_rating", 3.0)
+    
+    # Import career paths from jobs system
+    from cogs.jobs import CAREER_PATHS, JOB_ACTIVITIES
+    
+    path_data = CAREER_PATHS[career_path]
+    current_job = path_data["jobs"][current_level]
+    
+    # Calculate earnings based on job level and performance
+    base_salary = random.randint(*current_job["salary"])
+    performance_multiplier = 0.5 + (performance / 5.0)  # 0.5 to 1.0 multiplier
+    final_earnings = int(base_salary * performance_multiplier)
+    
+    # Calculate XP gain (both regular XP and work XP)
+    base_xp = random.randint(15, 35)
+    work_xp_gain = random.randint(10, 25)
+    
+    # Performance affects XP gain
+    total_xp = int(base_xp * performance_multiplier)
+    total_work_xp = int(work_xp_gain * performance_multiplier)
+    
+    # Get work activity
+    activities = JOB_ACTIVITIES.get(career_path, ["completed daily tasks"])
+    activity = random.choice(activities)
+    
+    # Process the work
+    result = database.db.process_work(user_id, current_job["title"], final_earnings)
+    
+    if not result["success"]:
+        await interaction.response.send_message("❌ An error occurred while processing your work.", ephemeral=True)
+        return
+    
+    # Update job-specific data
+    new_work_xp = work_xp + total_work_xp
+    new_performance = min(5.0, performance + random.uniform(0.01, 0.05))  # Gradual improvement
+    total_earnings = job_data.get("total_earnings", 0) + final_earnings
+    
+    # Update work count for general progression
+    work_count = user_data.get("work_count", 0) + 1
+    
+    database.db.update_user_data(user_id, {
+        "job.work_xp": new_work_xp,
+        "job.performance_rating": new_performance,
+        "job.total_earnings": total_earnings,
+        "work_count": work_count
+    })
+    
+    # Add regular XP too
+    database.db.add_xp(user_id, total_xp)
+    
+    # Check if promotion is available
+    next_job = None
+    promotion_available = False
+    if current_level + 1 < len(path_data["jobs"]):
+        next_job = path_data["jobs"][current_level + 1]
+        if new_work_xp >= next_job["xp_req"] and new_performance >= 3.0:
+            promotion_available = True
+
+    # Create response embed
+    embed = discord.Embed(
+        title=f"💼 Work Complete!",
+        description=f"**{interaction.user.display_name}** {activity} as a **{current_job['title']}**",
+        color=discord.Color.green(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    
+    # Earnings and XP
+    embed.add_field(name="💰 Earned", value=f"`{final_earnings:,}` coins", inline=True)
+    embed.add_field(name="⭐ XP Gained", value=f"`{total_xp}` XP", inline=True)
+    embed.add_field(name="🎯 Work XP", value=f"`+{total_work_xp}` ({new_work_xp:,} total)", inline=True)
+    
+    # Performance and streak
+    embed.add_field(name="📊 Performance", value=f"`{new_performance:.2f}/5.00`", inline=True)
+    embed.add_field(name="🔥 Work Streak", value=f"`{result['work_streak']}` days", inline=True)
+    embed.add_field(name="🏢 Career", value=f"{path_data['emoji']} {path_data['name']}", inline=True)
+    
+    # Show promotion availability
+    if promotion_available:
+        embed.add_field(
+            name="🎉 Promotion Available!", 
+            value=f"You can be promoted to **{next_job['title']}**!\nUse `/promote` to advance your career.", 
+            inline=False
+        )
+        embed.color = discord.Color.gold()
+    elif next_job:
+        xp_needed = next_job["xp_req"] - new_work_xp
+        embed.add_field(
+            name="🔄 Next Promotion", 
+            value=f"**{next_job['title']}** - Need `{xp_needed:,}` more Work XP", 
+            inline=False
+        )
+    
+    # Performance bonus for exceptional workers
+    if new_performance >= 4.5:
+        bonus = int(final_earnings * 0.2)
+        database.db.add_coins(user_id, bonus)
+        embed.add_field(
+            name="🌟 Excellence Bonus!", 
+            value=f"Outstanding performance earned you an extra `{bonus:,}` coins!", 
+            inline=False
+        )
+        embed.color = discord.Color.gold()
+    
+    embed.set_footer(text=f"Total career earnings: {total_earnings:,} coins • Works completed: {work_count:,}")
+    
+    await interaction.response.send_message(embed=embed)
 import discord
 from discord.ext import commands
 from discord import app_commands
