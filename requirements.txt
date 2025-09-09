@@ -1,7 +1,42 @@
-discord.py
-pymongo
-motor
-google-generativeai
-python-dotenv
-flask
-gunicorn
+# Discord Bot Core Dependencies
+discord.py>=2.3.0
+
+# Database Dependencies
+pymongo>=4.5.0
+motor>=3.3.0
+
+# AI Integration
+google-generativeai>=0.3.0
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# Web Framework for Health Checks
+flask>=2.3.0
+
+# Production Server
+gunicorn>=21.2.0
+
+# Additional Utilities
+aiohttp>=3.8.0
+asyncio-throttle>=1.0.2
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Caching and Performance
+redis>=4.6.0
+cachetools>=5.3.0
+
+# Logging and Monitoring
+structlog>=23.0.0
+
+# Security
+cryptography>=41.0.0
+
+# Development Dependencies (optional)
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# black>=23.0.0
+# flake8>=6.0.0
