@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import database
 import time
+import random  # ADDED: Missing import
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -215,7 +216,7 @@ class CoreUserSystem(commands.Cog):
         
         # Database stats
         db_stats = database.db.get_database_stats()
-        embed.add_field(name="🗄️ Database", value=f"`{db_stats['users']:,}` users\n`{db_stats['guilds']}` guilds\n{db_stats['storage']}", inline=True)
+        embed.add_field(name="🗄️ Database", value=f"`{db_stats['users']:,}` users\n`{db_stats['guilds']}` guilds\n{db_stats['storage_type']}", inline=True)
         
         # Features
         features = [
@@ -441,12 +442,14 @@ class CoreUserSystem(commands.Cog):
                 minutes = int((total_time_left % 3600) // 60)
                 
                 # Get item emoji and description
-                from cogs.unified_economy import PREMIUM_SHOP_ITEMS
-                item_data = PREMIUM_SHOP_ITEMS.get(item_type, {"emoji": "✨", "description": "Special item"})
+                # Note: PREMIUM_SHOP_ITEMS would need to be imported from unified_economy
+                # For now, using default values
+                item_emoji = "✨"
+                item_description = "Special item"
                 
                 embed.add_field(
-                    name=f"{item_data['emoji']} {item_type.title().replace('_', ' ')}",
-                    value=f"**Quantity:** {len(items)}\n**Time Left:** {hours}h {minutes}m\n*{item_data['description']}*",
+                    name=f"{item_emoji} {item_type.title().replace('_', ' ')}",
+                    value=f"**Quantity:** {len(items)}\n**Time Left:** {hours}h {minutes}m\n*{item_description}*",
                     inline=True
                 )
             
