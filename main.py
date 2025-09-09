@@ -25,20 +25,20 @@ app = Flask(__name__)
 # Load cogs from the 'cogs' folder
 async def load_cogs():
     cog_list = [
-        "basic",
-        "leveling",
-        "economy",
-        "cookies",
-        "moderation",
-        "admin",
-        "events",
-        "fun",
-        "ai",
-        "banking",
-        "tickets",
-        "settings",
-        "jobs"
-    ]
+    "core_user_system",      # Replaces: basic, leveling
+    "unified_economy",       # Replaces: economy, banking
+    "enhanced_pet_system",   # Replaces: pet_system
+    "fixed_jobsystem",       # Replaces: jobsystem, jobs
+    "cookies",               # Keep as-is
+    "moderation",           # Keep as-is
+    "admin",                # Keep as-is
+    "events",               # Keep as-is
+    "fun",                  # Keep as-is
+    "ai",                   # Keep as-is
+    "tickets",              # Keep as-is
+    "autologging",          # Keep as-is
+    "quicksetup"            # Enhanced version coming
+]
     for cog in cog_list:
         try:
             await bot.load_extension(f"cogs.{cog}")
