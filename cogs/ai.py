@@ -11,21 +11,33 @@ import threading
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import logging
+import sys
 
 # Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
-# Configure the Gemini API with your key
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Validate and configure the Gemini API
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
+    logger.error("GEMINI_API_KEY environment variable not found!")
+    raise ValueError("GEMINI_API_KEY environment variable is required")
+
+try:
+    genai.configure(api_key=gemini_api_key)
+    logger.info("Gemini API configured successfully")
+except Exception as e:
+    logger.error(f"Failed to configure Gemini API: {e}")
+    raise
 
 class ConversationManager:
     """Manages AI conversations with memory limits and cleanup"""
     
     def __init__(self, max_users: int = 1000, max_messages_per_user: int = 20, cleanup_interval: int = 3600):
-        self.conversations = OrderedDict()  # Using OrderedDict for LRU behavior
+        self.conversations = OrderedDict()
         self.max_users = max_users
         self.max_messages_per_user = max_messages_per_user
         self.cleanup_interval = cleanup_interval
@@ -53,17 +65,19 @@ class ConversationManager:
             # Update last activity
             self.conversations[user_id]["last_activity"] = current_time
             
+            # Truncate content to prevent memory issues
+            truncated_content = content[:1000] if content else ""
+            
             # Add new message
             self.conversations[user_id]["messages"].append({
                 "type": message_type,
-                "content": content,
+                "content": truncated_content,
                 "timestamp": current_time
             })
             
             # Limit messages per user
             messages = self.conversations[user_id]["messages"]
             if len(messages) > self.max_messages_per_user:
-                # Remove oldest messages, keep recent ones
                 self.conversations[user_id]["messages"] = messages[-self.max_messages_per_user:]
             
             # Move to end (LRU)
@@ -71,7 +85,6 @@ class ConversationManager:
             
             # Limit total users
             if len(self.conversations) > self.max_users:
-                # Remove least recently used user
                 self.conversations.popitem(last=False)
     
     def get_conversation_history(self, user_id: int, limit: int = 10) -> list:
@@ -119,22 +132,23 @@ class ConversationManager:
             del self.conversations[user_id]
         
         if users_to_remove:
-            logger.info(f"🧹 Cleaned up {len(users_to_remove)} old conversations")
+            logger.info(f"Cleaned up {len(users_to_remove)} old conversations")
     
     def _estimate_memory_usage(self) -> float:
         """Estimate memory usage in MB"""
         try:
-            import sys
             total_size = 0
             
             for conversation in self.conversations.values():
                 total_size += sys.getsizeof(conversation)
                 for message in conversation["messages"]:
                     total_size += sys.getsizeof(message)
-                    total_size += sys.getsizeof(message["content"])
+                    if isinstance(message.get("content"), str):
+                        total_size += sys.getsizeof(message["content"])
             
             return round(total_size / (1024 * 1024), 2)
-        except:
+        except Exception as e:
+            logger.warning(f"Error estimating memory usage: {e}")
             return 0.0
 
 # Global conversation manager
@@ -173,8 +187,62 @@ class AI(commands.Cog):
             "total_requests": 0,
             "successful_responses": 0,
             "errors": 0,
-            "most_used_personality": "friendly"
+            "personality_usage": {"nephew": 0, "friendly": 0, "expert": 0}
         }
+        
+        # API rate limiting
+        self.api_calls_per_minute = 0
+        self.api_minute_start = time.time()
+        self.max_api_calls_per_minute = 50
+        
+        # Start background tasks
+        self.cleanup_task = None
+
+    async def cog_load(self):
+        """Initialize when cog is loaded"""
+        logger.info("AI cog loaded successfully")
+        self.cleanup_task = self.bot.loop.create_task(self._periodic_cleanup())
+
+    async def cog_unload(self):
+        """Clean up when cog is unloaded"""
+        try:
+            if self.cleanup_task:
+                self.cleanup_task.cancel()
+            
+            # Clear all conversations
+            with conversation_manager._lock:
+                conversation_manager.conversations.clear()
+            
+            # Clear cooldowns
+            self.user_cooldowns.clear()
+            
+            logger.info("AI cog cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during AI cog cleanup: {e}")
+
+    async def _periodic_cleanup(self):
+        """Periodic cleanup task"""
+        while not self.bot.is_closed():
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+                
+                # Cleanup old cooldowns
+                current_time = time.time()
+                expired_users = [
+                    user_id for user_id, timestamp in self.user_cooldowns.items()
+                    if current_time - timestamp > 3600  # 1 hour old
+                ]
+                
+                for user_id in expired_users:
+                    del self.user_cooldowns[user_id]
+                
+                if expired_users:
+                    logger.info(f"Cleaned up {len(expired_users)} expired cooldowns")
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in AI periodic cleanup: {e}")
 
     async def _check_cooldown(self, user_id: int) -> bool:
         """Check if user is on cooldown"""
@@ -187,25 +255,55 @@ class AI(commands.Cog):
         self.user_cooldowns[user_id] = current_time
         return True
 
+    async def _check_api_rate_limit(self) -> bool:
+        """Check if we're hitting API rate limits"""
+        current_time = time.time()
+        
+        # Reset counter if a minute has passed
+        if current_time - self.api_minute_start >= 60:
+            self.api_calls_per_minute = 0
+            self.api_minute_start = current_time
+        
+        if self.api_calls_per_minute >= self.max_api_calls_per_minute:
+            return False
+        
+        self.api_calls_per_minute += 1
+        return True
+
+    def _truncate_for_embed(self, text: str, max_length: int = 4000) -> str:
+        """Truncate text to fit in Discord embed"""
+        if len(text) <= max_length:
+            return text
+        return text[:max_length-3] + "..."
+
     async def _generate_ai_response(self, prompt: str, personality: dict) -> str:
         """Generate AI response with enhanced error handling"""
         try:
+            # Check API rate limit
+            if not await self._check_api_rate_limit():
+                return f"{personality['emoji']} I'm getting too many requests right now. Please try again in a minute!"
+            
+            # Validate personality
+            if not isinstance(personality, dict) or 'name' not in personality:
+                raise ValueError("Invalid personality configuration")
+            
             model = genai.GenerativeModel('gemini-1.5-flash')
             
             # Enhanced prompt with safety guidelines
             enhanced_prompt = f"""
-            {personality['prompt']}
+            {personality.get('prompt', '')}
             
             IMPORTANT GUIDELINES:
             - Keep responses appropriate and family-friendly
-            - Stay in character as {personality['name']}
+            - Stay in character as {personality.get('name', 'AI')}
             - Be helpful and constructive
             - Avoid generating harmful, offensive, or inappropriate content
             - If asked about illegal activities, politely decline and suggest alternatives
+            - Keep responses under the specified word limit
             
             User question: {prompt}
             
-            Respond as {personality['name']}:
+            Respond as {personality.get('name', 'AI')}:
             """
             
             # Generate response with timeout
@@ -218,7 +316,7 @@ class AI(commands.Cog):
                 timeout=15.0  # 15 second timeout
             )
             
-            if response.text:
+            if response and hasattr(response, 'text') and response.text:
                 self.stats["successful_responses"] += 1
                 return response.text.strip()
             else:
@@ -227,17 +325,17 @@ class AI(commands.Cog):
         except asyncio.TimeoutError:
             self.stats["errors"] += 1
             logger.warning("AI request timed out")
-            return f"{personality['emoji']} Sorry, I'm thinking too hard right now. Try again in a moment!"
+            return f"{personality.get('emoji', '🤖')} Sorry, I'm thinking too hard right now. Try again in a moment!"
         
         except Exception as e:
             self.stats["errors"] += 1
             logger.error(f"AI generation error: {e}")
             
             error_responses = [
-                f"{personality['emoji']} My brain just blue-screened! 🤖💥",
-                f"{personality['emoji']} Error 404: Smartness not found! 🔍",
-                f"{personality['emoji']} I'm having a senior moment... 🧓",
-                f"{personality['emoji']} My circuits are fried! ⚡"
+                f"{personality.get('emoji', '🤖')} My brain just blue-screened! 🤖💥",
+                f"{personality.get('emoji', '🤖')} Error 404: Smartness not found! 🔍",
+                f"{personality.get('emoji', '🤖')} I'm having a senior moment... 🧓",
+                f"{personality.get('emoji', '🤖')} My circuits are fried! ⚡"
             ]
             return random.choice(error_responses)
 
@@ -256,14 +354,16 @@ class AI(commands.Cog):
     async def ask_ai(self, interaction: discord.Interaction, question: str, mode: str = "friendly"):
         # Check cooldown
         if not await self._check_cooldown(interaction.user.id):
+            remaining_time = self.cooldown_duration - (time.time() - self.user_cooldowns[interaction.user.id])
             await interaction.response.send_message(
-                "⏰ Please wait a moment before asking another question!",
+                f"⏰ Please wait {remaining_time:.1f} more seconds before asking another question!",
                 ephemeral=True
             )
             return
 
         # Validate input
-        if len(question.strip()) < 3:
+        question = question.strip()
+        if len(question) < 3:
             await interaction.response.send_message(
                 "❌ Please ask a more detailed question!",
                 ephemeral=True
@@ -277,10 +377,15 @@ class AI(commands.Cog):
             )
             return
 
+        # Validate mode
+        if mode not in self.personalities:
+            mode = "friendly"
+
         await interaction.response.defer()
         
         try:
             self.stats["total_requests"] += 1
+            self.stats["personality_usage"][mode] += 1
             personality = self.personalities[mode]
             
             # Get conversation context (last 3 messages)
@@ -305,6 +410,9 @@ class AI(commands.Cog):
             # Generate response
             ai_response = await self._generate_ai_response(full_prompt, personality)
             
+            # Truncate response if too long for embed
+            ai_response = self._truncate_for_embed(ai_response)
+            
             # Store conversation
             conversation_manager.add_message(interaction.user.id, "question", question)
             conversation_manager.add_message(interaction.user.id, "answer", ai_response)
@@ -325,9 +433,15 @@ class AI(commands.Cog):
                 inline=False
             )
             
+            # Safe avatar URL handling
+            try:
+                avatar_url = interaction.user.display_avatar.url
+            except:
+                avatar_url = None
+            
             embed.set_author(
                 name=interaction.user.display_name, 
-                icon_url=interaction.user.display_avatar.url
+                icon_url=avatar_url
             )
             
             embed.set_footer(text=f"Mode: {personality['name']} • Use different modes for varied responses!")
@@ -356,14 +470,16 @@ class AI(commands.Cog):
     async def chat(self, interaction: discord.Interaction, message: str, mode: str = "friendly"):
         # Check cooldown
         if not await self._check_cooldown(interaction.user.id):
+            remaining_time = self.cooldown_duration - (time.time() - self.user_cooldowns[interaction.user.id])
             await interaction.response.send_message(
-                "⏰ Please wait a moment before continuing the chat!",
+                f"⏰ Please wait {remaining_time:.1f} more seconds before continuing the chat!",
                 ephemeral=True
             )
             return
 
         # Validate input
-        if len(message.strip()) < 2:
+        message = message.strip()
+        if len(message) < 2:
             await interaction.response.send_message(
                 "❌ Please send a meaningful message!",
                 ephemeral=True
@@ -377,10 +493,15 @@ class AI(commands.Cog):
             )
             return
 
+        # Validate mode
+        if mode not in self.personalities:
+            mode = "friendly"
+
         await interaction.response.defer()
         
         try:
             self.stats["total_requests"] += 1
+            self.stats["personality_usage"][mode] += 1
             personality = self.personalities[mode]
             
             # Get extended conversation history for chat
@@ -408,6 +529,9 @@ User: {message}
             # Generate response
             ai_response = await self._generate_ai_response(chat_prompt, personality)
             
+            # Truncate response if too long
+            ai_response = self._truncate_for_embed(ai_response)
+            
             # Store conversation
             conversation_manager.add_message(interaction.user.id, "message", message)
             conversation_manager.add_message(interaction.user.id, "answer", ai_response)
@@ -423,9 +547,15 @@ User: {message}
                 timestamp=datetime.utcnow()
             )
             
+            # Safe bot avatar URL handling
+            try:
+                bot_avatar_url = self.bot.user.display_avatar.url if self.bot.user else None
+            except:
+                bot_avatar_url = None
+            
             embed.set_author(
                 name=f"{personality['emoji']} {personality['name']}", 
-                icon_url=self.bot.user.display_avatar.url
+                icon_url=bot_avatar_url
             )
             
             embed.add_field(
@@ -483,69 +613,308 @@ User: {message}
     async def ai_stats(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         
-        # Get user conversation stats
-        user_history = conversation_manager.get_conversation_history(user_id, 100)
-        user_messages = len([m for m in user_history if m["type"] in ["question", "message"]])
-        user_responses = len([m for m in user_history if m["type"] == "answer"])
-        
-        # Get global stats
-        global_stats = conversation_manager.get_stats()
-        
-        embed = discord.Embed(
-            title="🤖 AI Interaction Statistics",
-            color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
-        )
-        
-        # User stats
-        if user_messages > 0:
+        try:
+            # Get user conversation stats
+            user_history = conversation_manager.get_conversation_history(user_id, 100)
+            user_messages = len([m for m in user_history if m["type"] in ["question", "message"]])
+            user_responses = len([m for m in user_history if m["type"] == "answer"])
+            
+            # Get global stats
+            global_stats = conversation_manager.get_stats()
+            
+            embed = discord.Embed(
+                title="🤖 AI Interaction Statistics",
+                color=discord.Color.blue(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # User stats
+            if user_messages > 0:
+                embed.add_field(
+                    name="👤 Your Stats",
+                    value=f"**Messages Sent:** `{user_messages}`\n**Responses Received:** `{user_responses}`\n**Active Conversation:** {'Yes' if user_history else 'No'}",
+                    inline=True
+                )
+                
+                # Show last activity
+                if user_history:
+                    last_activity = max(msg["timestamp"] for msg in user_history)
+                    embed.add_field(
+                        name="⏰ Last Activity",
+                        value=f"<t:{int(last_activity)}:R>",
+                        inline=True
+                    )
+            else:
+                embed.add_field(
+                    name="👤 Your Stats", 
+                    value="No conversations yet!\nUse `/ask` or `/chat` to begin.",
+                    inline=True
+                )
+            
+            # Global system stats
             embed.add_field(
-                name="👤 Your Stats",
-                value=f"**Messages Sent:** `{user_messages}`\n**Responses Received:** `{user_responses}`\n**Active Conversation:** {'Yes' if user_history else 'No'}",
+                name="🌐 System Stats",
+                value=f"**Active Users:** `{global_stats['active_users']}`\n**Total Messages:** `{global_stats['total_messages']}`\n**Memory Usage:** `{global_stats['memory_usage_mb']} MB`",
                 inline=True
             )
             
-            # Show last activity
-            if user_history:
-                last_activity = max(msg["timestamp"] for msg in user_history)
-                last_activity_dt = datetime.fromtimestamp(last_activity)
-                embed.add_field(
-                    name="⏰ Last Activity",
-                    value=f"<t:{int(last_activity)}:R>",
-                    inline=True
-                )
-        else:
+            # Bot performance stats
+            total_requests = max(1, self.stats['total_requests'])  # Avoid division by zero
+            success_rate = (self.stats['successful_responses'] / total_requests) * 100
+            uptime_hours = (time.time() - self.stats['start_time']) / 3600
+            
             embed.add_field(
-                name="👤 Your Stats", 
-                value="No conversations yet!\nUse `/ask` or `/chat` to begin.",
+                name="⚡ Performance",
+                value=f"**Total Requests:** `{self.stats['total_requests']}`\n**Success Rate:** `{success_rate:.1f}%`\n**Errors:** `{self.stats['errors']}`\n**Uptime:** `{uptime_hours:.1f}h`",
                 inline=True
             )
-        
-        # Global system stats
-        embed.add_field(
-            name="🌐 System Stats",
-            value=f"**Active Users:** `{global_stats['active_users']}`\n**Total Messages:** `{global_stats['total_messages']}`\n**Memory Usage:** `{global_stats['memory_usage_mb']} MB`",
-            inline=True
-        )
-        
-        # Bot performance stats
-        embed.add_field(
-            name="⚡ Performance",
-            value=f"**Total Requests:** `{self.stats['total_requests']}`\n**Success Rate:** `{(self.stats['successful_responses']/max(1, self.stats['total_requests'])*100):.1f}%`\n**Errors:** `{self.stats['errors']}`",
-            inline=True
-        )
-        
-        # Available personalities
-        personalities_list = "\n".join([
-            f"{info['emoji']} **{info['name']}** - {info['prompt'][:40]}..."
-            for info in self.personalities.values()
-        ])
-        embed.add_field(name="🎭 Available Personalities", value=personalities_list, inline=False)
-        
-        embed.set_thumbnail(url=interaction.user.display_avatar.url)
-        embed.set_footer(text="Statistics reset when bot restarts • Conversations auto-expire after 24h")
-        
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+            # Personality usage stats
+            personality_stats = []
+            total_usage = sum(self.stats['personality_usage'].values())
+            if total_usage > 0:
+                for mode, count in self.stats['personality_usage'].items():
+                    if count > 0:
+                        percentage = (count / total_usage) * 100
+                        personality = self.personalities[mode]
+                        personality_stats.append(f"{personality['emoji']} {personality['name']}: `{count}` ({percentage:.1f}%)")
+            
+            if personality_stats:
+                embed.add_field(
+                    name="🎭 Personality Usage",
+                    value="\n".join(personality_stats),
+                    inline=False
+                )
+            
+            # Available personalities
+            personalities_list = []
+            for mode, info in self.personalities.items():
+                personalities_list.append(f"{info['emoji']} **{info['name']}** - {info['prompt'][:40]}...")
+            
+            embed.add_field(
+                name="🎯 Available Personalities", 
+                value="\n".join(personalities_list), 
+                inline=False
+            )
+            
+            # Safe avatar URL handling
+            try:
+                avatar_url = interaction.user.display_avatar.url
+                embed.set_thumbnail(url=avatar_url)
+            except Exception:
+                pass
+            
+            embed.set_footer(text="Statistics reset when bot restarts • Conversations auto-expire after 24h")
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            logger.error(f"Error in ai_stats command: {e}")
+            await interaction.response.send_message(
+                "❌ Error retrieving statistics. Please try again later.",
+                ephemeral=True
+            )
+
+    @app_commands.command(name="aihelp", description="Get help with AI commands and features.")
+    async def ai_help(self, interaction: discord.Interaction):
+        try:
+            embed = discord.Embed(
+                title="🤖 AI Assistant Help",
+                description="Learn how to interact with our AI personalities!",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Commands overview
+            embed.add_field(
+                name="📋 Commands",
+                value=(
+                    "`/ask` - Ask a single question\n"
+                    "`/chat` - Have ongoing conversations\n"
+                    "`/clearchat` - Clear conversation history\n"
+                    "`/aistats` - View your AI statistics\n"
+                    "`/aihelp` - Show this help message"
+                ),
+                inline=False
+            )
+            
+            # Personalities
+            personalities_info = []
+            for mode, info in self.personalities.items():
+                personalities_info.append(f"{info['emoji']} **{info['name']}** - {info['prompt'][:50]}...")
+            
+            embed.add_field(
+                name="🎭 Personalities",
+                value="\n".join(personalities_info),
+                inline=False
+            )
+            
+            # Tips and tricks
+            embed.add_field(
+                name="💡 Tips & Tricks",
+                value=(
+                    "• Use different personalities for different needs\n"
+                    "• Chat mode remembers conversation context\n"
+                    "• Clear chat history to start fresh topics\n"
+                    "• Each personality has unique response styles\n"
+                    "• Conversations auto-expire after 24 hours"
+                ),
+                inline=False
+            )
+            
+            # Limitations
+            embed.add_field(
+                name="⚠️ Limitations",
+                value=(
+                    f"• {self.cooldown_duration}-second cooldown between requests\n"
+                    "• 1000 character limit per message\n"
+                    "• Family-friendly responses only\n"
+                    "• Cannot perform actions outside Discord\n"
+                    "• Memory limited to recent conversations\n"
+                    f"• {self.max_api_calls_per_minute} requests per minute max"
+                ),
+                inline=False
+            )
+            
+            embed.set_footer(text="Have fun chatting with our AI personalities!")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            logger.error(f"Error in aihelp command: {e}")
+            await interaction.response.send_message(
+                "❌ Error loading help information. Please try again.",
+                ephemeral=True
+            )
+
+    @app_commands.command(name="aitrouble", description="Troubleshoot common AI issues.")
+    async def ai_trouble(self, interaction: discord.Interaction):
+        try:
+            embed = discord.Embed(
+                title="🔧 AI Troubleshooting",
+                description="Having issues? Here are common solutions:",
+                color=discord.Color.orange(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Common issues and solutions
+            embed.add_field(
+                name="⏰ \"Please wait\" Messages",
+                value="You're hitting the cooldown limit. Wait 5 seconds between requests.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🤖 \"My brain blue-screened\" Responses",
+                value="Temporary AI error. Try rephrasing your question or waiting a moment.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="📝 Responses Cut Off",
+                value="Response was too long for Discord. Try asking for a shorter answer.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🧠 AI Seems Confused",
+                value="Clear your chat history with `/clearchat` to start fresh.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🚫 \"Too many requests\" Error",
+                value="System is busy. Wait a minute before trying again.",
+                inline=False
+            )
+            
+            # Quick fixes
+            embed.add_field(
+                name="🚀 Quick Fixes",
+                value=(
+                    "1. Use `/clearchat` to reset conversations\n"
+                    "2. Try different personality modes\n"
+                    "3. Keep questions under 1000 characters\n"
+                    "4. Wait between requests\n"
+                    "5. Report persistent issues to server admins"
+                ),
+                inline=False
+            )
+            
+            embed.set_footer(text="Still having issues? Contact a server administrator!")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            logger.error(f"Error in aitrouble command: {e}")
+            await interaction.response.send_message(
+                "❌ Error loading troubleshooting info. Please try again.",
+                ephemeral=True
+            )
+
+
+async def setup(bot: commands.Bot):
+    """Setup function for the AI cog"""
+    try:
+        await bot.add_cog(AI(bot))
+        logger.info("AI cog added successfully")
+    except Exception as e:
+        logger.error(f"Failed to add AI cog: {e}")
+        raise
+            
+            # Bot performance stats
+            total_requests = max(1, self.stats['total_requests'])  # Avoid division by zero
+            success_rate = (self.stats['successful_responses'] / total_requests) * 100
+            
+            embed.add_field(
+                name="⚡ Performance",
+                value=f"**Total Requests:** `{self.stats['total_requests']}`\n**Success Rate:** `{success_rate:.1f}%`\n**Errors:** `{self.stats['errors']}`",
+                inline=True
+            )
+            
+            # Personality usage stats
+            personality_stats = []
+            total_usage = sum(self.stats['personality_usage'].values())
+            if total_usage > 0:
+                for mode, count in self.stats['personality_usage'].items():
+                    if count > 0:
+                        percentage = (count / total_usage) * 100
+                        personality = self.personalities[mode]
+                        personality_stats.append(f"{personality['emoji']} {personality['name']}: `{count}` ({percentage:.1f}%)")
+            
+            if personality_stats:
+                embed.add_field(
+                    name="🎭 Personality Usage",
+                    value="\n".join(personality_stats),
+                    inline=False
+                )
+            
+            # Available personalities
+            personalities_list = []
+            for mode, info in self.personalities.items():
+                personalities_list.append(f"{info['emoji']} **{info['name']}** - {info['prompt'][:40]}...")
+            
+            embed.add_field(
+                name="🎯 Available Personalities", 
+                value="\n".join(personalities_list), 
+                inline=False
+            )
+            
+            # Safe avatar URL handling
+            try:
+                avatar_url = interaction.user.display_avatar.url
+            except:
+                avatar_url = None
+            
+            embed.set_thumbnail(url=avatar_url)
+            embed.set_footer(text="Statistics reset when bot restarts • Conversations auto-expire after 24h")
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            logger.error(f"Error in ai_stats command: {e}")
+            await interaction.response.send_message(
+                "❌ Error retrieving statistics. Please try again later.",
+                ephemeral=True
+            )
 
     @app_commands.command(name="aihelp", description="Get help with AI commands and features.")
     async def ai_help(self, interaction: discord.Interaction):
@@ -570,13 +939,13 @@ User: {message}
         )
         
         # Personalities
+        personalities_info = []
+        for mode, info in self.personalities.items():
+            personalities_info.append(f"{info['emoji']} **{info['name']}** - {info['prompt'][:50]}...")
+        
         embed.add_field(
             name="🎭 Personalities",
-            value=(
-                "😏 **BleckNephew** - Sassy, sarcastic responses\n"
-                "😊 **Bleky** - Friendly, helpful conversations\n"
-                "🎓 **Professor Bleck** - Expert, detailed answers"
-            ),
+            value="\n".join(personalities_info),
             inline=False
         )
         
@@ -597,7 +966,7 @@ User: {message}
         embed.add_field(
             name="⚠️ Limitations",
             value=(
-                "• 5-second cooldown between requests\n"
+                f"• {self.cooldown_duration}-second cooldown between requests\n"
                 "• 1000 character limit per message\n"
                 "• Family-friendly responses only\n"
                 "• Cannot perform actions outside Discord\n"
@@ -608,49 +977,6 @@ User: {message}
         
         embed.set_footer(text="Have fun chatting with our AI personalities!")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    async def cog_unload(self):
-        """Clean up when cog is unloaded"""
-        try:
-            # Clear all conversations
-            with conversation_manager._lock:
-                conversation_manager.conversations.clear()
-            
-            # Clear cooldowns
-            self.user_cooldowns.clear()
-            
-            logger.info("🧹 AI cog cleanup completed")
-        except Exception as e:
-            logger.error(f"Error during AI cog cleanup: {e}")
-
-    async def cog_load(self):
-        """Initialize when cog is loaded"""
-        logger.info("🤖 AI cog loaded successfully")
-        
-        # Start cleanup task
-        self.bot.loop.create_task(self._periodic_cleanup())
-
-    async def _periodic_cleanup(self):
-        """Periodic cleanup task"""
-        while not self.bot.is_closed():
-            try:
-                await asyncio.sleep(3600)  # Run every hour
-                
-                # Cleanup old cooldowns
-                current_time = time.time()
-                expired_users = [
-                    user_id for user_id, timestamp in self.user_cooldowns.items()
-                    if current_time - timestamp > 3600  # 1 hour old
-                ]
-                
-                for user_id in expired_users:
-                    del self.user_cooldowns[user_id]
-                
-                if expired_users:
-                    logger.info(f"🧹 Cleaned up {len(expired_users)} expired cooldowns")
-                
-            except Exception as e:
-                logger.error(f"Error in AI periodic cleanup: {e}")
 
 
 async def setup(bot: commands.Bot):
