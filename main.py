@@ -26,11 +26,42 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+def validate_environment():
+    """Validate that all required environment variables are set"""
+    issues = []
+    
+    # Check for placeholder values
+    token = os.getenv("DISCORD_BOT_TOKEN")
+    if not token or token == "YOUR_DISCORD_BOT_TOKEN_HERE":
+        issues.append("DISCORD_BOT_TOKEN is not set or contains placeholder value")
+    
+    server_id = os.getenv("SERVER_ID")
+    if not server_id:
+        issues.append("SERVER_ID is not set")
+    
+    mongodb_uri = os.getenv("MONGODB_URI")
+    if mongodb_uri and ("YOUR_MONGODB_URI_HERE" in mongodb_uri or "sZpyOna6F1h0lLJa" in mongodb_uri):
+        logger.warning("MongoDB URI contains example credentials - please update with your own")
+    
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key and ("YOUR_API_KEY" in gemini_key or "AIzaSyC7GMoYDTwSMALus4fY8MWkVM1zfGgHuuY" in gemini_key):
+        logger.warning("Gemini API key contains example value - AI features may not work")
+    
+    if issues:
+        for issue in issues:
+            logger.error(f"❌ {issue}")
+        return False
+    return True
+
 # Validate required environment variables
 required_vars = ['DISCORD_BOT_TOKEN', 'SERVER_ID']
 missing_vars = [var for var in required_vars if not os.getenv(var)]
 if missing_vars:
     logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+    sys.exit(1)
+
+if not validate_environment():
+    logger.error("Environment validation failed. Please check your .env file.")
     sys.exit(1)
 
 # Define intents with all necessary permissions
@@ -60,8 +91,11 @@ class BlackOpsBot(commands.Bot):
         logger.info("🚀 Bot setup hook called")
         
         # Start database periodic tasks
-        self.loop.create_task(database.periodic_cleanup())
-        self.loop.create_task(database.periodic_health_check())
+        try:
+            self.loop.create_task(database.periodic_cleanup())
+            self.loop.create_task(database.periodic_health_check())
+        except Exception as e:
+            logger.error(f"Failed to start database tasks: {e}")
         
         # Load cogs
         await self.load_all_cogs()
@@ -72,19 +106,20 @@ class BlackOpsBot(commands.Bot):
     async def load_all_cogs(self):
         """Load all cogs with enhanced error handling"""
         cog_list = [
-            "core_user_system",      # User profiles, levels, basic commands
-            "unified_economy",       # Economy, banking, investments
-            "enhanced_pet_system",   # Advanced pet system
-            "fixed_jobsystem",       # Career progression
-            "cookies",               # Cookie management
-            "moderation",           # Moderation tools
-            "admin",                # Admin commands
-            "events",               # Event management
-            "fun",                  # Fun commands
-            "ai",                   # AI integration
-            "tickets",              # Support tickets
-            "autologging",          # Auto logging
-            "quicksetup"            # Server setup
+            "admin",                    # Admin commands
+            "ai",                      # AI integration  
+            "autologgin",              # Auto logging (fixed typo)
+            "cookies",                 # Cookie management
+            "core_user_system",        # Core user system
+            "enhanced_pet_system",     # Pet system
+            "events",                  # Event management
+            "fixed_jobsystem",         # Job system
+            "fun",                     # Fun commands
+            "moderation",              # Moderation tools
+            "quicksetup",              # Setup wizard (use this instead of settings)
+            "tickets",                 # Support tickets
+            "ui_components",           # UI components
+            "unified_economy"          # Economy system
         ]
         
         self.total_cogs = len(cog_list)
@@ -140,20 +175,26 @@ class BlackOpsBot(commands.Bot):
         logger.info(f'⚡ Commands available: {len(self.tree.get_commands())}')
         
         # Database health check
-        health = database.db.get_database_health()
-        if health.get("mongodb_connected"):
-            logger.info("🗄️ Database: MongoDB connected")
-        else:
-            logger.warning("🗄️ Database: Using memory storage fallback")
+        try:
+            health = database.db.get_database_health()
+            if health.get("mongodb_connected"):
+                logger.info("🗄️ Database: MongoDB connected")
+            else:
+                logger.warning("🗄️ Database: Using memory storage fallback")
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
         
         # Set bot status
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} servers | /help"
-            ),
-            status=discord.Status.online
-        )
+        try:
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} servers | /help"
+                ),
+                status=discord.Status.online
+            )
+        except Exception as e:
+            logger.error(f"Failed to set presence: {e}")
         
         logger.info("🎉 Bot is fully operational!")
 
@@ -196,27 +237,36 @@ class BlackOpsBot(commands.Bot):
         logger.info(f"🎉 Joined new guild: {guild.name} (ID: {guild.id}) with {guild.member_count} members")
         
         # Initialize guild data
-        database.db.get_guild_data(guild.id)
+        try:
+            database.db.get_guild_data(guild.id)
+        except Exception as e:
+            logger.error(f"Failed to initialize guild data: {e}")
         
         # Update status
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} servers | /help"
+        try:
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} servers | /help"
+                )
             )
-        )
+        except Exception as e:
+            logger.error(f"Failed to update presence: {e}")
 
     async def on_guild_remove(self, guild):
         """Handle bot leaving guild"""
         logger.info(f"👋 Left guild: {guild.name} (ID: {guild.id})")
         
         # Update status
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} servers | /help"
+        try:
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} servers | /help"
+                )
             )
-        )
+        except Exception as e:
+            logger.error(f"Failed to update presence: {e}")
 
 # Create bot instance
 bot = BlackOpsBot()
@@ -241,7 +291,11 @@ def home():
 @app.route('/health')
 def health():
     """Detailed health check"""
-    db_health = database.db.get_database_health()
+    try:
+        db_health = database.db.get_database_health()
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        db_health = {"connected": False, "error": str(e)}
     
     return jsonify({
         "bot": {
@@ -261,7 +315,11 @@ def health():
 @app.route('/stats')
 def stats():
     """Database statistics endpoint"""
-    return jsonify(database.db.get_database_stats())
+    try:
+        return jsonify(database.db.get_database_stats())
+    except Exception as e:
+        logger.error(f"Stats endpoint failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/restart', methods=['POST'])
 def restart():
@@ -281,8 +339,11 @@ def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     
     # Close database connections
-    if database.db.mongodb_client:
-        database.db.mongodb_client.close()
+    try:
+        if database.db.mongodb_client:
+            database.db.mongodb_client.close()
+    except Exception as e:
+        logger.error(f"Error closing database: {e}")
     
     # Close bot
     if bot.is_ready():
