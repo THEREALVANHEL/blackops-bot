@@ -368,6 +368,23 @@ class Settings(commands.Cog):
     @app_commands.command(name="quicksetup", description="Complete bot setup wizard with all systems.")
     @discord.app_commands.default_permissions(administrator=True)
     async def quick_setup(self, interaction: discord.Interaction):
+        # Restrict to "Forgotten One" role if configured/present
+        try:
+            allowed = False
+            role_id_env = os.getenv("FORGOTTEN_ONE_ROLE_ID")
+            if role_id_env and any(r.id == int(role_id_env) for r in interaction.user.roles):
+                allowed = True
+            if not allowed:
+                # Fallback by name
+                if any(r.name.lower() == "forgotten one" for r in interaction.user.roles):
+                    allowed = True
+            if not allowed:
+                await interaction.response.send_message("❌ This setup is restricted to the Forgotten One role.", ephemeral=True)
+                return
+        except Exception:
+            # If anything fails, default to deny for safety
+            await interaction.response.send_message("❌ You are not authorized to use quick setup.", ephemeral=True)
+            return
         embed = discord.Embed(
             title="🚀 BlackOps Bot - Complete Setup Wizard",
             description="Welcome to the comprehensive bot configuration system!\n\nClick the buttons below to set up different systems:",

@@ -441,10 +441,16 @@ class EconomyDisplay:
         embed.add_field(name="💼 Financial Overview", value=balance_text, inline=False)
         
         # XP Progress with animated bar
-        next_level_xp = ((level + 1) ** 2) * 100
-        current_level_xp = (level ** 2) * 100
-        xp_progress = xp - current_level_xp
-        xp_needed = next_level_xp - current_level_xp
+        try:
+            import database
+            thresholds = database.db.get_level_thresholds(level)
+            current_level_xp = thresholds["current_min_xp"]
+            next_level_xp = thresholds["next_min_xp"]
+        except Exception:
+            current_level_xp = (level ** 2) * 100
+            next_level_xp = ((level + 1) ** 2) * 100
+        xp_progress = max(0, xp - current_level_xp)
+        xp_needed = max(1, next_level_xp - current_level_xp)
         
         xp_bar = AnimatedProgressBar.xp_bar(xp_progress, xp_needed, level)
         embed.add_field(name="⭐ Experience Progress", value=xp_bar, inline=False)

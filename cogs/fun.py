@@ -27,11 +27,11 @@ class Fun(commands.Cog):
         winner = random.choice(choices)
 
         file = None
-        arrow_overlay_url = None
         try:
             from PIL import Image, ImageDraw, ImageFont
             import io, math
-            size = 600
+            size = 640
+            base = Image.new("RGBA", (size, size), (255, 255, 255, 0))
             wheel = Image.new("RGBA", (size, size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(wheel)
             center = (size // 2, size // 2)
@@ -43,10 +43,6 @@ class Fun(commands.Cog):
                 start = 360 * i / n
                 end = 360 * (i + 1) / n
                 draw.pieslice([(10, 10), (size - 10, size - 10)], start, end, fill=palette[i % len(palette)])
-            # Pointer at top
-            pointer = [(center[0] - 10, 5), (center[0] + 10, 5), (center[0], 40)]
-            draw.polygon(pointer, fill=(0, 0, 0))
-            # Winner angle to align so pointer points to winner slice; for simplicity we render static wheel
             # Labels (optional minimal)
             font = None
             try:
@@ -58,9 +54,20 @@ class Fun(commands.Cog):
                 tx = center[0] + int(math.cos(angle) * (radius * 0.6))
                 ty = center[1] + int(math.sin(angle) * (radius * 0.6))
                 draw.text((tx - 20, ty - 8), label[:12], fill=(255, 255, 255), font=font)
+            # Rotate wheel so that winner is at the top under the pointer
+            winner_index = choices.index(winner)
+            winner_center_angle = (360 * (winner_index + 0.5) / n)
+            # We want winner center at 90 degrees (top). PIL rotates counter-clockwise.
+            rotate_deg = 90 - winner_center_angle
+            rotated = wheel.rotate(rotate_deg, resample=Image.BICUBIC)
+            # Draw pointer on base image at the top
+            base.paste(rotated, (0, 0), rotated)
+            pointer_draw = ImageDraw.Draw(base)
+            pointer = [(center[0] - 12, 6), (center[0] + 12, 6), (center[0], 48)]
+            pointer_draw.polygon(pointer, fill=(0, 0, 0, 255))
             # Export image
             buf = io.BytesIO()
-            wheel.save(buf, format="PNG")
+            base.save(buf, format="PNG")
             buf.seek(0)
             file = discord.File(buf, filename="wheel.png")
         except Exception:
@@ -73,46 +80,19 @@ class Fun(commands.Cog):
             embed.set_image(url="attachment://wheel.png")
         await interaction.response.send_message(embed=embed, file=file if file else None)
         
-    @app_commands.command(name="rps", description="Play Rock, Paper, Scissors against the bot.")
-    @app_commands.describe(choice="Your choice of Rock, Paper, or Scissors.")
-    @app_commands.choices(
-        choice=[
-            discord.app_commands.Choice(name="Rock", value="rock"),
-            discord.app_commands.Choice(name="Paper", value="paper"),
-            discord.app_commands.Choice(name="Scissors", value="scissors")
-        ]
-    )
-    async def rps(self, interaction: discord.Interaction, choice: str):
-        bot_choice = random.choice(["rock", "paper", "scissors"])
-        
-        win_conditions = {
-            "rock": "scissors",
-            "paper": "rock",
-            "scissors": "paper"
-        }
-        
-        user_choice_display = choice.title()
-        bot_choice_display = bot_choice.title()
-        
-        if choice == bot_choice:
-            result = "It's a draw!"
-            color = discord.Color.grey()
-        elif win_conditions[choice] == bot_choice:
-            result = "You win!"
-            color = discord.Color.green()
-        else:
-            result = "You lose!"
-            color = discord.Color.red()
-            
-        embed = discord.Embed(
-            title="Rock, Paper, Scissors",
-            color=color
-        )
-        embed.add_field(name=f"You chose:", value=user_choice_display, inline=True)
-        embed.add_field(name=f"Bot chose:", value=bot_choice_display, inline=True)
-        embed.set_footer(text=result)
-        
-        await interaction.response.send_message(embed=embed)
+    @app_commands.command(name="rps", description="Challenge another user to Rock-Paper-Scissors.")
+    @app_commands.describe(opponent="The user you want to challenge")
+    async def rps(self, interaction: discord.Interaction, opponent: discord.Member):
+        if opponent.bot or opponent.id == interaction.user.id:
+            await interaction.response.send_message("❌ Pick a different human opponent.", ephemeral=True)
+            return
+        view = Fun.RPSDuelView(interaction.user.id, opponent.id, timeout=120)
+        embed = discord.Embed(title="🪨📄✂️ RPS Duel", description=f"{interaction.user.mention} vs {opponent.mention}\nPick your move using the buttons below.", color=discord.Color.blurple())
+        await interaction.response.send_message(embed=embed, view=view)
+        try:
+            view.message = await interaction.original_response()
+        except Exception:
+            pass
 
     # ==================== USER-VS-USER RPS DUEL ====================
     class RPSDuelView(discord.ui.View):

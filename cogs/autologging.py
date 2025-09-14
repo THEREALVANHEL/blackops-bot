@@ -53,42 +53,42 @@ class AutoLogging(commands.Cog):
                 "guild_id": member.guild.id
             })
             
-            # Welcome Message
+            # Welcome Message (simplified in channel, detailed DM)
             if settings.get("welcome_enabled"):
                 welcome_channel_id = settings.get("welcome_channel")
                 if welcome_channel_id:
                     welcome_channel = self.bot.get_channel(welcome_channel_id)
                     if welcome_channel:
-                        welcome_message = settings.get("welcome_message", "Welcome {user} to {server}!")
-                        join_gif = settings.get("join_gif", "https://cdn.discordapp.com/attachments/1370993458700877964/1375089295257370624/image0.gif")
-                        
-                        # Replace placeholders
-                        message_content = welcome_message.format(
-                            user=member.mention,
-                            server=member.guild.name,
-                            name=member.display_name
-                        )
-                        
-                        embed = discord.Embed(
-                            title="🎉 Welcome to the Server!",
-                            description=message_content,
-                            color=discord.Color.green(),
-                            timestamp=datetime.utcnow()
-                        )
-                        embed.set_thumbnail(url=member.display_avatar.url)
-                        embed.add_field(name="👤 Member", value=member.mention, inline=True)
-                        embed.add_field(name="🆔 User ID", value=f"`{member.id}`", inline=True)
-                        embed.add_field(name="📅 Account Created", value=f"<t:{int(member.created_at.timestamp())}:R>", inline=True)
-                        embed.add_field(name="👥 Member Count", value=f"`{member.guild.member_count}`", inline=True)
-                        embed.set_image(url=join_gif)
-                        embed.set_footer(text=f"Welcome to {member.guild.name}!")
-                        
                         try:
-                            await welcome_channel.send(embed=embed)
-                        except discord.Forbidden:
-                            logger.warning(f"No permission to send welcome message in {welcome_channel.name}")
+                            # Channel message: dates only per requirement
+                            channel_embed = discord.Embed(
+                                title="🎉 Welcome!",
+                                description=f"{member.mention} joined the server.",
+                                color=discord.Color.green(),
+                                timestamp=datetime.utcnow()
+                            )
+                            channel_embed.add_field(name="📅 Joined", value=f"<t:{int(datetime.utcnow().timestamp())}:F>", inline=True)
+                            await welcome_channel.send(embed=channel_embed)
                         except Exception as e:
-                            logger.error(f"Error sending welcome message: {e}")
+                            logger.error(f"Error sending simplified welcome message: {e}")
+                # DM detailed welcome
+                try:
+                    welcome_message = settings.get("welcome_message", "Welcome {user} to {server}!")
+                    message_content = welcome_message.format(
+                        user=member.mention,
+                        server=member.guild.name,
+                        name=member.display_name
+                    )
+                    dm_embed = discord.Embed(
+                        title="🎉 Welcome to the Server!",
+                        description=message_content,
+                        color=discord.Color.green(),
+                        timestamp=datetime.utcnow()
+                    )
+                    dm_embed.set_thumbnail(url=member.display_avatar.url)
+                    await member.send(embed=dm_embed)
+                except Exception:
+                    pass
             
             # Join Logging
             log_channel = self.get_log_channel(member.guild.id, "member")
@@ -127,40 +127,40 @@ class AutoLogging(commands.Cog):
             if join_date:
                 days_in_server = int((datetime.utcnow().timestamp() - join_date) / 86400)
             
-            # Leave Message
+            # Leave Message (simplified in channel, DM farewell)
             if settings.get("welcome_enabled"):
                 welcome_channel_id = settings.get("welcome_channel")
                 if welcome_channel_id:
                     welcome_channel = self.bot.get_channel(welcome_channel_id)
                     if welcome_channel:
-                        leave_message = settings.get("leave_message", "Goodbye {user}! They were with us for {days} days.")
-                        leave_gif = settings.get("leave_gif", "https://cdn.discordapp.com/attachments/1351560015483240459/1368427641564299314/image0.gif")
-                        
-                        message_content = leave_message.format(
-                            user=member.display_name,
-                            server=member.guild.name,
-                            days=days_in_server
-                        )
-                        
-                        embed = discord.Embed(
-                            title="👋 Member Left",
-                            description=message_content,
-                            color=discord.Color.orange(),
-                            timestamp=datetime.utcnow()
-                        )
-                        embed.set_thumbnail(url=member.display_avatar.url)
-                        embed.add_field(name="👤 Member", value=f"{member} ({member.id})", inline=True)
-                        embed.add_field(name="⏱️ Time in Server", value=f"`{days_in_server}` days", inline=True)
-                        embed.add_field(name="👥 Members Left", value=f"`{member.guild.member_count}`", inline=True)
-                        embed.set_image(url=leave_gif)
-                        embed.set_footer(text=f"Goodbye from {member.guild.name}")
-                        
                         try:
-                            await welcome_channel.send(embed=embed)
-                        except discord.Forbidden:
-                            logger.warning(f"No permission to send leave message")
+                            channel_embed = discord.Embed(
+                                title="👋 Member Left",
+                                description=f"{member.display_name} left the server.",
+                                color=discord.Color.orange(),
+                                timestamp=datetime.utcnow()
+                            )
+                            channel_embed.add_field(name="📅 Left", value=f"<t:{int(datetime.utcnow().timestamp())}:F>", inline=True)
+                            await welcome_channel.send(embed=channel_embed)
                         except Exception as e:
-                            logger.error(f"Error sending leave message: {e}")
+                            logger.error(f"Error sending simplified leave message: {e}")
+                # DM farewell (best-effort; user may have DMs closed)
+                try:
+                    leave_message = settings.get("leave_message", "Goodbye {user}! They were with us for {days} days.")
+                    message_content = leave_message.format(
+                        user=member.display_name,
+                        server=member.guild.name,
+                        days=days_in_server
+                    )
+                    dm_embed = discord.Embed(
+                        title="👋 Farewell",
+                        description=message_content,
+                        color=discord.Color.orange(),
+                        timestamp=datetime.utcnow()
+                    )
+                    await member.send(embed=dm_embed)
+                except Exception:
+                    pass
             
             # Leave Logging
             log_channel = self.get_log_channel(member.guild.id, "member")

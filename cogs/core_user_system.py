@@ -463,11 +463,12 @@ class CoreUserSystem(commands.Cog):
         cookies = user_data.get("cookies", 0)
         daily_streak = user_data.get("daily_streak", 0)
         
-        # Calculate XP for next level
-        current_level_xp = (level ** 2) * 100
-        next_level_xp = ((level + 1) ** 2) * 100
-        xp_progress = xp - current_level_xp
-        xp_needed = next_level_xp - current_level_xp
+        # Calculate XP thresholds using hard curve from database
+        thresholds = database.db.get_level_thresholds(level)
+        current_level_xp = thresholds["current_min_xp"]
+        next_level_xp = thresholds["next_min_xp"]
+        xp_progress = max(0, xp - current_level_xp)
+        xp_needed = max(1, next_level_xp - current_level_xp)
         progress_percentage = (xp_progress / xp_needed) * 100
         
         embed = EmbedBuilder.create_embed(
@@ -727,7 +728,8 @@ class CoreUserSystem(commands.Cog):
             return
         
         # Basic XP reward for messages
-        xp_gained = random.randint(5, 15)
+        # Make leveling harder: reduce per-message XP
+        xp_gained = random.randint(2, 6)
         try:
             result = database.db.add_xp(message.author.id, xp_gained)
         except Exception as e:

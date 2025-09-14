@@ -295,10 +295,13 @@ class JobSystem(commands.Cog):
         path_data = CAREER_PATHS[career_path]
         current_job = path_data["jobs"][current_level]
         
-        # Calculate earnings based on job level and performance
+        # Calculate earnings based on job level and performance with success rate
         base_salary = random.randint(*current_job["salary"])
         performance_multiplier = 0.5 + (performance / 10.0)  # 0.5 to 1.0 multiplier
-        final_earnings = int(base_salary * performance_multiplier)
+        # Success chance improves with performance (from 60% to 95%)
+        success_chance = min(0.95, 0.6 + (performance / 10.0))
+        success = random.random() < success_chance
+        final_earnings = int(base_salary * performance_multiplier) if success else 0
         
         # Calculate XP gain (both regular XP and work XP)
         base_xp = random.randint(15, 35)
@@ -357,8 +360,12 @@ class JobSystem(commands.Cog):
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
         # Earnings and XP
-        embed.add_field(name="💰 Earned", value=f"`{final_earnings:,}` coins", inline=True)
-        embed.add_field(name="⭐ XP Gained", value=f"`{total_xp}` XP", inline=True)
+        if success:
+            embed.add_field(name="💰 Earned", value=f"`{final_earnings:,}` coins", inline=True)
+            embed.add_field(name="⭐ XP Gained", value=f"`{total_xp}` XP", inline=True)
+        else:
+            embed.add_field(name="❌ Result", value="Work attempt failed", inline=True)
+            embed.add_field(name="⭐ XP Gained", value=f"`0` XP", inline=True)
         embed.add_field(name="🎯 Work XP", value=f"`+{total_work_xp}` ({new_work_xp:,} total)", inline=True)
         
         # Performance and streak

@@ -207,44 +207,10 @@ class TicketCreateView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.select(
-        placeholder="Select the type of support you need...",
-        options=[
-            discord.SelectOption(
-                label="General Support", 
-                value="general",
-                emoji="❓",
-                description="General questions and support"
-            ),
-            discord.SelectOption(
-                label="Technical Issue", 
-                value="technical",
-                emoji="🔧",
-                description="Bot issues, bugs, or technical problems"
-            ),
-            discord.SelectOption(
-                label="Report User", 
-                value="report",
-                emoji="⚠️",
-                description="Report rule violations or problematic users"
-            ),
-            discord.SelectOption(
-                label="Partnership/Business", 
-                value="business",
-                emoji="🤝",
-                description="Partnership requests or business inquiries"
-            ),
-            discord.SelectOption(
-                label="Appeal", 
-                value="appeal",
-                emoji="⚖️",
-                description="Appeal bans, mutes, or other punishments"
-            )
-        ]
-    )
-    async def ticket_type_select(self, interaction: discord.Interaction, select):
-        ticket_type = select.values[0]
-        await self.create_ticket(interaction, ticket_type)
+    @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji="🎫")
+    async def create_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Default to general; we'll ask the user with a lightweight dropdown after creation if needed
+        await self.create_ticket(interaction, "general")
 
     async def create_ticket(self, interaction: discord.Interaction, ticket_type: str):
         guild = interaction.guild
@@ -331,13 +297,14 @@ class TicketCreateView(discord.ui.View):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Ticket ID: ticket-{member.id}-{ticket_type}")
 
+        # Mention oversight roles
+        mention_ids = [os.getenv('OVERSEER_ROLE_ID'), os.getenv('MODERATOR_ROLE_ID'), os.getenv('LEAD_MODERATOR_ROLE_ID')]
+        mentions = " ".join([f"<@&{rid}>" for rid in mention_ids if rid and rid.isdigit() and int(rid) > 0])
+
         # Send welcome message with control view
         view = TicketControlView(member.id)
-        await ticket_channel.send(
-            f"👋 Welcome {member.mention}!\n🔔 <@&{os.getenv('MODERATOR_ROLE_ID', '0')}> A new support ticket needs attention!",
-            embed=embed,
-            view=view
-        )
+        content = f"👋 Welcome {member.mention}!\n🔔 {mentions} A new support ticket needs attention!" if mentions else f"👋 Welcome {member.mention}!"
+        await ticket_channel.send(content, embed=embed, view=view)
 
         await interaction.followup.send(
             f"✅ Your ticket has been created: {ticket_channel.mention}",

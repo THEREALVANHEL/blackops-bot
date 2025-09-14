@@ -21,12 +21,11 @@ class Admin(commands.Cog):
         try:
             result = database.db.add_xp(user.id, amount)
             if result.get("leveled_up"):  # Use .get() to avoid KeyError
-                await interaction.response.send_message(
-                    f"✅ Added **{amount}** XP to {user.mention}. They are now at level **{result['new_level']}**!", 
-                    ephemeral=True
-                )
+                embed = discord.Embed(title="⭐ XP Updated", description=f"Added **{amount:,}** XP to {user.mention}. Now level **{result['new_level']}**.", color=discord.Color.green())
+                await interaction.response.send_message(embed=embed)
             else:
-                await interaction.response.send_message(f"✅ Added **{amount}** XP to {user.mention}.", ephemeral=True)
+                embed = discord.Embed(title="⭐ XP Updated", description=f"Added **{amount:,}** XP to {user.mention}.", color=discord.Color.green())
+                await interaction.response.send_message(embed=embed)
         except Exception as e:
             await interaction.response.send_message(f"❌ Error adding XP: {str(e)}", ephemeral=True)
             
@@ -45,12 +44,11 @@ class Admin(commands.Cog):
             
             # Check if user leveled down
             if result.get("leveled_down") or result.get("level_changed"):
-                await interaction.response.send_message(
-                    f"✅ Removed **{amount}** XP from {user.mention}. They are now at level **{result.get('new_level', 'unknown')}**.", 
-                    ephemeral=True
-                )
+                embed = discord.Embed(title="⭐ XP Updated", description=f"Removed **{amount:,}** XP from {user.mention}. Now level **{result.get('new_level', 'unknown')}**.", color=discord.Color.orange())
+                await interaction.response.send_message(embed=embed)
             else:
-                await interaction.response.send_message(f"✅ Removed **{amount}** XP from {user.mention}.", ephemeral=True)
+                embed = discord.Embed(title="⭐ XP Updated", description=f"Removed **{amount:,}** XP from {user.mention}.", color=discord.Color.orange())
+                await interaction.response.send_message(embed=embed)
         except Exception as e:
             await interaction.response.send_message(f"❌ Error removing XP: {str(e)}", ephemeral=True)
 
@@ -65,7 +63,8 @@ class Admin(commands.Cog):
             
         try:
             database.db.add_coins(user.id, amount)
-            await interaction.response.send_message(f"✅ Added **{amount}** coins to {user.mention}.", ephemeral=True)
+            embed = discord.Embed(title="💰 Coins Updated", description=f"Added **{amount:,}** coins to {user.mention}.", color=discord.Color.green())
+            await interaction.response.send_message(embed=embed)
         except Exception as e:
             await interaction.response.send_message(f"❌ Error adding coins: {str(e)}", ephemeral=True)
 
@@ -80,9 +79,11 @@ class Admin(commands.Cog):
             
         try:
             if database.db.remove_coins(user.id, amount):
-                await interaction.response.send_message(f"✅ Removed **{amount}** coins from {user.mention}.", ephemeral=True)
+                embed = discord.Embed(title="💰 Coins Updated", description=f"Removed **{amount:,}** coins from {user.mention}.", color=discord.Color.orange())
+                await interaction.response.send_message(embed=embed)
             else:
-                await interaction.response.send_message("❌ User does not have enough coins.", ephemeral=True)
+                embed = discord.Embed(title="💰 Coins Update Failed", description="User does not have enough coins.", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed)
         except Exception as e:
             await interaction.response.send_message(f"❌ Error removing coins: {str(e)}", ephemeral=True)
 

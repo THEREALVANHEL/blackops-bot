@@ -13,7 +13,8 @@ class Cookies(commands.Cog):
     @permissions.is_cookies_manager()
     async def add_cookies(self, interaction: discord.Interaction, user: discord.Member, amount: int):
         database.db.add_cookies(user.id, amount)
-        await interaction.response.send_message(f"✅ Added **{amount:,}** cookies to {user.mention}.", ephemeral=True)
+        embed = discord.Embed(title="🍪 Cookies Updated", description=f"Added **{amount:,}** cookies to {user.mention}.", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed)
     
     @app_commands.command(name="removecookies", description="Remove cookies from a user.")
     @app_commands.describe(user="The user to remove cookies from.", amount="The amount of cookies to remove.")
@@ -29,7 +30,8 @@ class Cookies(commands.Cog):
         new_cookies = current_cookies - amount
         database.db.update_user_data(user.id, {"cookies": new_cookies})
         
-        await interaction.response.send_message(f"✅ Removed **{amount:,}** cookies from {user.mention}.", ephemeral=True)
+        embed = discord.Embed(title="🍪 Cookies Updated", description=f"Removed **{amount:,}** cookies from {user.mention}.", color=discord.Color.orange())
+        await interaction.response.send_message(embed=embed)
         
     @app_commands.command(name="cookiesgiveall", description="Give cookies to everyone.")
     @app_commands.describe(amount="The amount of cookies to give everyone.")
@@ -43,7 +45,8 @@ class Cookies(commands.Cog):
                 database.db.add_cookies(member.id, amount)
                 users_updated += 1
                 
-        await interaction.response.send_message(f"🍪 Gave **{amount:,}** cookies to **{users_updated}** users.", ephemeral=True)
+        embed = discord.Embed(title="🍪 Mass Cookies", description=f"Gave **{amount:,}** cookies to **{users_updated}** users.", color=discord.Color.blurple())
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="removecookiesall", description="Remove cookies from everyone.")
     @app_commands.describe(amount="The amount of cookies to remove from everyone.")
@@ -60,7 +63,8 @@ class Cookies(commands.Cog):
                 database.db.update_user_data(member.id, {"cookies": new_cookies})
                 users_updated += 1
 
-        await interaction.response.send_message(f"🍪 Removed **{amount:,}** cookies from **{users_updated}** users.", ephemeral=True)
+        embed = discord.Embed(title="🍪 Mass Cookies Removal", description=f"Removed **{amount:,}** cookies from **{users_updated}** users.", color=discord.Color.red())
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Cog):

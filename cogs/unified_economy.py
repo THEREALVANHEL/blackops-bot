@@ -241,9 +241,10 @@ class UnifiedEconomy(commands.Cog):
         # Add extra stats section
         level = user_data.get("level", 1)
         xp = user_data.get("xp", 0)
-        next_level_xp = ((level + 1) ** 2) * 100
-        current_level_xp = (level ** 2) * 100
-        xp_bar = AnimatedProgressBar.xp_bar(xp - current_level_xp, next_level_xp - current_level_xp, level)
+        thresholds = database.db.get_level_thresholds(level)
+        current_level_xp = thresholds["current_min_xp"]
+        next_level_xp = thresholds["next_min_xp"]
+        xp_bar = AnimatedProgressBar.xp_bar(max(0, xp - current_level_xp), max(1, next_level_xp - current_level_xp), level)
         profile_embed.add_field(name="⭐ XP Progress", value=xp_bar, inline=False)
         # Social and economy quick stats
         profile_embed.add_field(name="🎯 Commands Used", value=f"`{user_data.get('stats', {}).get('commands_used', 0):,}`", inline=True)

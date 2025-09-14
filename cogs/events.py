@@ -241,19 +241,17 @@ class Events(commands.Cog):
         if notes:
             embed.add_field(name="📝 Notes", value=notes, inline=False)
         
-        if image:
-            try:
+        # Allow dropping an image instead of requiring URL
+        try:
+            if interaction.attachments and not image:
+                attachment = interaction.attachments[0]
+                if attachment.content_type and attachment.content_type.startswith('image/'):
+                    embed.set_image(url=attachment.url)
+            elif image:
                 embed.set_image(url=image)
-            except Exception:
+        except Exception:
+            if image:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
-        else:
-            try:
-                if interaction.attachments:
-                    attachment = interaction.attachments[0]
-                    if attachment.content_type and attachment.content_type.startswith('image/'):
-                        embed.set_image(url=attachment.url)
-            except Exception:
-                pass
         
         embed.set_author(name=f"Logged by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
         embed.set_footer(text="Game Statistics • BlackOps Gaming")
@@ -310,20 +308,17 @@ class Events(commands.Cog):
                 inline=False
             )
         
-        # Add image if provided
-        if image:
-            try:
+        # Add image if provided or via dropped attachment
+        try:
+            if interaction.attachments and not image:
+                attachment = interaction.attachments[0]
+                if attachment.content_type and attachment.content_type.startswith('image/'):
+                    embed.set_image(url=attachment.url)
+            elif image:
                 embed.set_image(url=image)
-            except Exception:
+        except Exception:
+            if image:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
-        else:
-            try:
-                if interaction.attachments:
-                    attachment = interaction.attachments[0]
-                    if attachment.content_type and attachment.content_type.startswith('image/'):
-                        embed.set_image(url=attachment.url)
-            except Exception:
-                pass
         
         embed.set_author(
             name=f"Announcement by {interaction.user.display_name}",

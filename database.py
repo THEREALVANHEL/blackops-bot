@@ -662,6 +662,31 @@ class DatabaseManager:
         if xp <= 0:
             return 1
         return max(1, int((xp / 1000) ** 0.75) + 1)
+
+    def get_level_thresholds(self, level: int) -> Dict[str, int]:
+        """Return the XP thresholds for the current level and the next level under the hard curve.
+
+        For the curve level = floor((xp/1000)**0.75) + 1, the minimum XP required to reach a given
+        level L (L >= 1) is: xp_min(L) = 1000 * (L-1) ** (1/0.75). Level 1 starts at 0 XP.
+        """
+        try:
+            if level <= 1:
+                current_min_xp = 0
+            else:
+                current_min_xp = int(1000 * ((level - 1) ** (1 / 0.75)))
+            next_min_xp = int(1000 * ((max(1, level) ** (1 / 0.75))))
+            return {
+                "current_min_xp": max(0, current_min_xp),
+                "next_min_xp": max(next_min_xp, 1)
+            }
+        except Exception:
+            # Fallback to a safe default similar to legacy quadratic if something goes wrong
+            current_min_xp = (max(1, level) ** 2) * 100
+            next_min_xp = ((max(1, level) + 1) ** 2) * 100
+            return {
+                "current_min_xp": current_min_xp,
+                "next_min_xp": next_min_xp
+            }
     
     def _calculate_level_rewards(self, new_level: int, old_level: int) -> Dict[str, Any]:
         """Calculate rewards for level ups"""

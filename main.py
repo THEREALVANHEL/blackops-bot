@@ -124,6 +124,7 @@ class BlackOpsBot(commands.Bot):
             "quicksetup",              # Setup wizard
             "tickets",                 # Support tickets
             "ui_components",           # UI components
+            "reminders",               # Reminders
             "unified_economy"          # Economy system
         ]
         
