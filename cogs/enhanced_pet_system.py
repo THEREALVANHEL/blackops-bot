@@ -832,9 +832,7 @@ class EnhancedPetSystem(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="breeding", description="Breed two pets to create offspring with mixed traits!")
-    async def breed_pets(self, interaction: discord.Interaction):
-        await interaction.response.send_message("❌ Breeding is currently disabled to simplify the pet system.", ephemeral=True)
+    # Breeding command removed entirely to simplify pet system
 
     def create_status_bars(self, happiness: int, hunger: int, energy: int) -> str:
         """Create visual status bars for pet stats"""
