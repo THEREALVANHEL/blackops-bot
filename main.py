@@ -87,7 +87,7 @@ class BlackOpsBot(commands.Bot):
             case_insensitive=True,
             strip_after_prefix=True
         )
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(datetime.UTC)
         self.cogs_loaded = 0
         self.total_cogs = 0
         
@@ -288,10 +288,10 @@ def home():
         "bot_name": bot.user.name if bot.user else "Bot",
         "guilds": len(bot.guilds) if bot.is_ready() else 0,
         "users": len(bot.users) if bot.is_ready() else 0,
-        "uptime": str(datetime.utcnow() - bot.start_time) if hasattr(bot, 'start_time') else "Unknown",
+        "uptime": str(datetime.now(datetime.UTC) - bot.start_time) if hasattr(bot, 'start_time') else "Unknown",
         "latency": round(bot.latency * 1000, 2) if bot.is_ready() else 0,
         "cogs_loaded": f"{bot.cogs_loaded}/{bot.total_cogs}",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(datetime.UTC).isoformat()
     })
 
 @app.route('/health')
@@ -308,14 +308,14 @@ def health():
             "status": "online" if bot.is_ready() else "offline",
             "guilds": len(bot.guilds) if bot.is_ready() else 0,
             "latency": round(bot.latency * 1000, 2) if bot.is_ready() else 0,
-            "uptime_seconds": (datetime.utcnow() - bot.start_time).total_seconds() if hasattr(bot, 'start_time') else 0
+            "uptime_seconds": (datetime.now(datetime.UTC) - bot.start_time).total_seconds() if hasattr(bot, 'start_time') else 0
         },
         "database": db_health,
         "system": {
             "cogs_loaded": f"{bot.cogs_loaded}/{bot.total_cogs}",
             "commands": len(bot.tree.get_commands()) if bot.is_ready() else 0
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(datetime.UTC).isoformat()
     })
 
 @app.route('/stats')

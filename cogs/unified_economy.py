@@ -160,7 +160,7 @@ class EconomyView(discord.ui.View):
         embed = discord.Embed(
             title="💰 Wallet Overview",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.add_field(name="💵 Cash", value=f"`{coins:,}` coins", inline=True)
         embed.add_field(name="🏦 Bank", value=f"`{bank:,}` coins", inline=True)
@@ -200,7 +200,7 @@ class UnifiedEconomy(commands.Cog):
         embed = discord.Embed(
             title=f"💰 {target_user.display_name}'s Financial Portfolio",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=target_user.display_avatar.url)
         
@@ -250,7 +250,7 @@ class UnifiedEconomy(commands.Cog):
                 title="🎉 Daily Rewards Claimed!",
                 description=f"**{interaction.user.display_name}** claimed their daily bonus!",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             embed.add_field(name="💰 Coins Earned", value=f"`{result['coins_earned']:,}` coins", inline=True)
@@ -290,7 +290,7 @@ class UnifiedEconomy(commands.Cog):
             title="🛒 Premium Items Shop",
             description="Purchase temporary boosts and premium items with your coins!",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         # Filter items by category if specified
@@ -368,7 +368,7 @@ class UnifiedEconomy(commands.Cog):
             title="🎉 Purchase Successful!",
             description=f"**{interaction.user.display_name}** purchased {quantity}x **{item_details['emoji']} {item.title().replace('_', ' ')}** {tier_emoji}",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.add_field(name="💰 Total Cost", value=f"`{total_cost:,}` coins", inline=True)
         embed.add_field(name="⏰ Duration", value=f"`{int(total_duration / 3600)}` hours", inline=True)
@@ -447,7 +447,7 @@ class UnifiedEconomy(commands.Cog):
                 title=f"🪙 {actual_outcome.upper()} - You Win!",
                 description=f"**{interaction.user.display_name}** won `{final_winnings:,}` coins!",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="💰 Winnings", value=f"`{final_winnings:,}` coins", inline=True)
             embed.add_field(name="💵 New Balance", value=f"`{new_balance:,}` coins", inline=True)
@@ -462,7 +462,7 @@ class UnifiedEconomy(commands.Cog):
                 title=f"🪙 {actual_outcome.upper()} - You Lose!",
                 description=f"**{interaction.user.display_name}** lost `{amount:,}` coins!",
                 color=discord.Color.red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="💸 Lost", value=f"`{amount:,}` coins", inline=True)
             embed.add_field(name="💵 New Balance", value=f"`{new_balance:,}` coins", inline=True)
@@ -550,7 +550,7 @@ class UnifiedEconomy(commands.Cog):
             embed = discord.Embed(
                 title="🎰 JACKPOT! 🎰",
                 color=discord.Color.gold(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="🎯 Result", value=f"```{slot_display}```", inline=False)
             embed.add_field(name="💰 Total Winnings", value=f"`{winnings:,}` coins", inline=True)
@@ -561,7 +561,7 @@ class UnifiedEconomy(commands.Cog):
             embed = discord.Embed(
                 title="🎰 Better Luck Next Time!",
                 color=discord.Color.red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="🎯 Result", value=f"```{slot_display}```", inline=False)
             embed.add_field(name="💸 Lost", value=f"`{bet:,}` coins", inline=True)
@@ -588,7 +588,7 @@ class UnifiedEconomy(commands.Cog):
         embed = discord.Embed(
             title=f"🏦 {interaction.user.display_name}'s Banking Dashboard",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
@@ -672,7 +672,7 @@ class UnifiedEconomy(commands.Cog):
                 title="📈 Compound Interest Claimed!",
                 description=f"**{interaction.user.display_name}** earned interest on their savings!",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="💰 Interest Earned", value=f"`{interest_earned:,}` coins", inline=True)
             embed.add_field(name="🏦 New Balance", value=f"`{new_bank_balance:,}` coins", inline=True)
@@ -707,7 +707,7 @@ class UnifiedEconomy(commands.Cog):
                 title="🏦 Deposit Successful",
                 description=f"**{interaction.user.display_name}** deposited money into savings!",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="💰 Deposited", value=f"`{amount:,}` coins", inline=True)
             embed.add_field(name="🏦 New Balance", value=f"`{user_data['bank'] + amount:,}` coins", inline=True)
@@ -736,7 +736,7 @@ class UnifiedEconomy(commands.Cog):
                 title="💸 Withdrawal Successful",
                 description=f"**{interaction.user.display_name}** withdrew money from savings!",
                 color=discord.Color.blue(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="💰 Withdrawn", value=f"`{amount:,}` coins", inline=True)
             embed.add_field(name="🏦 Remaining", value=f"`{user_data['bank'] - amount:,}` coins", inline=True)
@@ -801,7 +801,7 @@ class UnifiedEconomy(commands.Cog):
             title=f"{investment['emoji']} Investment Made!",
             description=f"**{interaction.user.display_name}** invested in {investment['name']}",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.add_field(name="💰 Invested", value=f"`{amount:,}` coins", inline=True)
         embed.add_field(name="⏰ Matures", value=f"<t:{mature_timestamp}:R>", inline=True)
@@ -843,7 +843,7 @@ class UnifiedEconomy(commands.Cog):
             title="📊 Investment Portfolio",
             description=f"**{interaction.user.display_name}'s** Active Investments",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         total_invested = 0

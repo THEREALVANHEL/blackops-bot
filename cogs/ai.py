@@ -429,7 +429,7 @@ class AI(commands.Cog):
                 title=f"{personality['emoji']} {personality['name']} Responds",
                 description=ai_response,
                 color=personality['color'],
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             # Truncate long questions for display

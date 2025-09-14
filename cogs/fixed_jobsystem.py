@@ -155,7 +155,7 @@ class JobApplicationView(discord.ui.View):
             title="🎉 Congratulations!",
             description=f"**{interaction.user.display_name}** has been hired!",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.add_field(name="🏢 Career Path", value=f"{path_data['emoji']} {path_data['name']}", inline=True)
         embed.add_field(name="💼 Position", value=starting_job["title"], inline=True)
@@ -214,7 +214,7 @@ class JobSystem(commands.Cog):
             title=f"{path_data['emoji']} Career Profile",
             description=f"**{interaction.user.display_name}** - {current_job['title']}",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
@@ -355,7 +355,7 @@ class JobSystem(commands.Cog):
             title=f"💼 Work Complete!",
             description=f"**{interaction.user.display_name}** {activity} as a **{current_job['title']}**",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
@@ -467,7 +467,7 @@ class JobSystem(commands.Cog):
             title="🎉 PROMOTION!",
             description=f"**{interaction.user.display_name}** has been promoted!",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         embed.add_field(name="🆙 New Position", value=next_job["title"], inline=True)
@@ -511,7 +511,7 @@ class JobSystem(commands.Cog):
                     title="📤 Resignation Accepted",
                     description=f"**{interaction.user.display_name}** has resigned from their position.",
                     color=discord.Color.orange(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.add_field(name="📋 Former Position", value=current_title, inline=True)
                 embed.add_field(name="⏱️ Employment Duration", value=f"{days_employed} days", inline=True)
@@ -558,7 +558,7 @@ class JobSystem(commands.Cog):
             title="📊 Employment Overview",
             description="Server-wide employment statistics",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         if career_path:

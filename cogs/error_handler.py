@@ -31,7 +31,7 @@ class ErrorHandler(commands.Cog):
         """Handle traditional command errors"""
         self.error_stats["command_errors"] += 1
         self.error_stats["total_errors"] += 1
-        self.error_stats["last_error_time"] = datetime.utcnow()
+        self.error_stats["last_error_time"] = datetime.now(datetime.UTC)
         
         # Ignore certain errors
         ignored_errors = (commands.CommandNotFound, commands.DisabledCommand)
@@ -111,7 +111,7 @@ class ErrorHandler(commands.Cog):
         """Handle slash command errors"""
         self.error_stats["app_command_errors"] += 1
         self.error_stats["total_errors"] += 1
-        self.error_stats["last_error_time"] = datetime.utcnow()
+        self.error_stats["last_error_time"] = datetime.now(datetime.UTC)
         
         # Handle specific errors
         if isinstance(error, app_commands.MissingPermissions):
@@ -185,7 +185,7 @@ class ErrorHandler(commands.Cog):
             embed = discord.Embed(
                 title="🚨 Unexpected Error Occurred",
                 color=discord.Color.dark_red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             # Add context information
@@ -245,7 +245,7 @@ class ErrorHandler(commands.Cog):
         """Handle errors in event listeners"""
         self.error_stats["listener_errors"] += 1
         self.error_stats["total_errors"] += 1
-        self.error_stats["last_error_time"] = datetime.utcnow()
+        self.error_stats["last_error_time"] = datetime.now(datetime.UTC)
         
         error_info = sys.exc_info()
         if error_info[0] is not None:
@@ -261,7 +261,7 @@ class ErrorHandler(commands.Cog):
                             title=f"🚨 Event Error: {event}",
                             description=f"```python\n{error_msg[:1500]}```",
                             color=discord.Color.dark_red(),
-                            timestamp=datetime.utcnow()
+                            timestamp=datetime.now(datetime.UTC)
                         )
                         await error_channel.send(embed=embed)
                 except Exception as log_error:
@@ -292,7 +292,7 @@ class ErrorHandler(commands.Cog):
             embed = discord.Embed(
                 title="📊 Bot Error Statistics",
                 color=discord.Color.blue(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             embed.add_field(name="Total Errors", value=f"`{self.error_stats['total_errors']}`", inline=True)
@@ -311,7 +311,7 @@ class ErrorHandler(commands.Cog):
             
             # Bot uptime
             if hasattr(self.bot, 'start_time'):
-                uptime = datetime.utcnow() - self.bot.start_time
+                uptime = datetime.now(datetime.UTC) - self.bot.start_time
                 embed.add_field(name="Bot Uptime", value=f"`{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds%3600)//60}m`", inline=True)
             
             embed.set_footer(text="Error statistics are reset when the bot restarts")

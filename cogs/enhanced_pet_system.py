@@ -148,7 +148,7 @@ class PetBattleView(discord.ui.View):
         # Create battle result embed
         embed = discord.Embed(
             title="⚔️ Pet Battle Results!",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         if winner_pet:
@@ -324,7 +324,7 @@ class PetAdoptionView(discord.ui.View):
                     "battles_total": 0,
                     "breeding_available": True,
                     "achievements": [],
-                    "adopted_date": datetime.utcnow().timestamp()
+                    "adopted_date": datetime.now(datetime.UTC).timestamp()
                 }
                 
                 # Add pet to user's collection
@@ -337,7 +337,7 @@ class PetAdoptionView(discord.ui.View):
                     title="🎉 Pet Adopted Successfully!",
                     description=f"**{interaction.user.display_name}** adopted a {rarity} **{species}**!",
                     color=discord.Color.green(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_thumbnail(url=interaction.user.display_avatar.url)
                 embed.add_field(name="🐾 Name", value=name, inline=True)
@@ -404,7 +404,7 @@ class EnhancedPetSystem(commands.Cog):
             title="🏠 Pet Adoption Center",
             description="Welcome to the adoption center! Choose a pet to become your companion.",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(
@@ -480,7 +480,7 @@ class EnhancedPetSystem(commands.Cog):
                     title=f"🐾 {interaction.user.display_name}'s Pets",
                     description="Choose a pet name with `/pet status <pet_name>` or use the dropdown below in future updates.",
                     color=discord.Color.blurple(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_thumbnail(url=interaction.user.display_avatar.url)
                 pet_lines = []
@@ -501,7 +501,7 @@ class EnhancedPetSystem(commands.Cog):
             title=f"{pet['emoji']} {pet['name']}'s Profile",
             description=f"**{pet['species']}** • Level {pet.get('level', 1)} • {pet['rarity'].title()}",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
@@ -627,7 +627,7 @@ class EnhancedPetSystem(commands.Cog):
             title=f"{pet['emoji']} {activity.title()} Complete!",
             description=f"You spent time {activity}ing with **{pet['name']}**!",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(name="💰 Cost", value=f"{cost} coins", inline=True)
@@ -690,7 +690,7 @@ class EnhancedPetSystem(commands.Cog):
             title="⚔️ Pet Battle Challenge!",
             description=f"**{interaction.user.display_name}** challenges **{opponent.display_name}** to a pet battle!",
             color=discord.Color.red(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(
@@ -803,7 +803,7 @@ class EnhancedPetSystem(commands.Cog):
             title="✨ Evolution Complete!",
             description=f"**{selected_pet['name']}** has evolved!",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(

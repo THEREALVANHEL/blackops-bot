@@ -58,7 +58,7 @@ class EmbedBuilder:
         if footer_text:
             embed.set_footer(text=footer_text, icon_url=footer_icon)
         elif timestamp:
-            embed.timestamp = datetime.utcnow()
+            embed.timestamp = datetime.now(datetime.UTC)
             
         return embed
     
@@ -302,11 +302,11 @@ class ProfileView(discord.ui.View):
                        inline=True)
         
         # Account info
-        created_at = user_data.get("created_at", datetime.utcnow())
+        created_at = user_data.get("created_at", datetime.now(datetime.UTC))
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         
-        days_active = (datetime.utcnow() - created_at).days
+        days_active = (datetime.now(datetime.UTC) - created_at).days
         embed.add_field(name="📅 Account", 
                        value=f"**Days Active:** {days_active}\n**Member Since:** <t:{int(created_at.timestamp())}:R>", 
                        inline=True)
@@ -441,7 +441,7 @@ class CoreUserSystem(commands.Cog):
         embed.add_field(name="🎮 Games & Fun", value="\n".join(features[4:]), inline=True)
         
         # System status
-        uptime = datetime.utcnow() - self.bot.start_time if hasattr(self.bot, 'start_time') else None
+        uptime = datetime.now(datetime.UTC) - self.bot.start_time if hasattr(self.bot, 'start_time') else None
         if uptime:
             embed.add_field(name="⏱️ Uptime", value=f"`{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds%3600)//60}m`", inline=True)
         
@@ -540,15 +540,15 @@ class CoreUserSystem(commands.Cog):
                        inline=True)
         
         # Account age and activity
-        created_at = user_data.get("created_at", datetime.utcnow())
+        created_at = user_data.get("created_at", datetime.now(datetime.UTC))
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         
-        last_seen = user_data.get("last_seen", datetime.utcnow())
+        last_seen = user_data.get("last_seen", datetime.now(datetime.UTC))
         if isinstance(last_seen, str):
             last_seen = datetime.fromisoformat(last_seen)
         
-        days_active = (datetime.utcnow() - created_at).days
+        days_active = (datetime.now(datetime.UTC) - created_at).days
         
         embed.add_field(name="📅 Account Info", 
                        value=f"**Member Since:** <t:{int(created_at.timestamp())}:R>\n**Days Active:** `{days_active}`\n**Last Seen:** <t:{int(last_seen.timestamp())}:R>", 
@@ -675,7 +675,7 @@ class CoreUserSystem(commands.Cog):
         
         # Creation date and age
         created_at = guild.created_at
-        days_old = (datetime.utcnow() - created_at.replace(tzinfo=None)).days
+        days_old = (datetime.now(datetime.UTC) - created_at.replace(tzinfo=None)).days
         
         embed.add_field(name="📅 Created", value=f"<t:{int(created_at.timestamp())}:F>", inline=True)
         embed.add_field(name="🗓️ Age", value=f"`{days_old:,}` days old", inline=True)
@@ -744,7 +744,7 @@ class CoreUserSystem(commands.Cog):
             
             database.db.update_user_data(message.author.id, {
                 "stats": stats,
-                "last_seen": datetime.utcnow()
+                "last_seen": datetime.now(datetime.UTC)
             })
         except Exception as e:
             pass  # Non-critical error

@@ -131,7 +131,7 @@ class TicketControlView(discord.ui.View):
                     title="🎫 Ticket Transcript",
                     description=f"Your ticket **{interaction.channel.name}** has been closed.",
                     color=discord.Color.blue(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.add_field(name="Channel", value=interaction.channel.name, inline=True)
                 embed.add_field(name="Closed by", value=interaction.user.mention, inline=True)
@@ -173,7 +173,7 @@ class TicketControlView(discord.ui.View):
         transcript = f"TICKET TRANSCRIPT\n"
         transcript += f"Channel: {channel.name}\n"
         transcript += f"Created: {channel.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
-        transcript += f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        transcript += f"Generated: {datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
         transcript += "=" * 50 + "\n\n"
         
         try:
@@ -285,7 +285,7 @@ class TicketCreateView(discord.ui.View):
             title=f"{info['emoji']} Support Ticket Created",
             description=f"**Type:** {ticket_type.title()}\n**User:** {member.mention}",
             color=info['color'],
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(
@@ -322,7 +322,7 @@ class Tickets(commands.Cog):
             title="🎫 Support Ticket System",
             description="Need help? Create a support ticket below!\n\nSelect the type of support you need and our team will assist you.",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(
@@ -399,7 +399,7 @@ class Tickets(commands.Cog):
         embed = discord.Embed(
             title="📊 Ticket System Statistics",
             color=discord.Color.green(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(name="🎫 Total Open Tickets", value=f"`{len(ticket_channels)}`", inline=True)

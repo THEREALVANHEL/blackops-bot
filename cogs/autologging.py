@@ -49,7 +49,7 @@ class AutoLogging(commands.Cog):
             
             # Store join data in database
             database.db.update_user_data(member.id, {
-                "guild_join_date": datetime.utcnow().timestamp(),
+                "guild_join_date": datetime.now(datetime.UTC).timestamp(),
                 "guild_id": member.guild.id
             })
             
@@ -65,9 +65,9 @@ class AutoLogging(commands.Cog):
                                 title="🎉 Welcome!",
                                 description=f"{member.mention} joined the server.",
                                 color=discord.Color.green(),
-                                timestamp=datetime.utcnow()
+                                timestamp=datetime.now(datetime.UTC)
                             )
-                            channel_embed.add_field(name="📅 Joined", value=f"<t:{int(datetime.utcnow().timestamp())}:F>", inline=True)
+                            channel_embed.add_field(name="📅 Joined", value=f"<t:{int(datetime.now(datetime.UTC).timestamp())}:F>", inline=True)
                             await welcome_channel.send(embed=channel_embed)
                         except Exception as e:
                             logger.error(f"Error sending simplified welcome message: {e}")
@@ -83,7 +83,7 @@ class AutoLogging(commands.Cog):
                         title="🎉 Welcome to the Server!",
                         description=message_content,
                         color=discord.Color.green(),
-                        timestamp=datetime.utcnow()
+                        timestamp=datetime.now(datetime.UTC)
                     )
                     dm_embed.set_thumbnail(url=member.display_avatar.url)
                     await member.send(embed=dm_embed)
@@ -97,7 +97,7 @@ class AutoLogging(commands.Cog):
                     title="📥 Member Joined",
                     description=f"{member.mention} joined the server",
                     color=discord.Color.green(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_thumbnail(url=member.display_avatar.url)
                 embed.add_field(name="👤 User", value=f"{member} ({member.id})", inline=True)
@@ -125,7 +125,7 @@ class AutoLogging(commands.Cog):
             join_date = user_data.get("guild_join_date")
             days_in_server = 0
             if join_date:
-                days_in_server = int((datetime.utcnow().timestamp() - join_date) / 86400)
+                days_in_server = int((datetime.now(datetime.UTC).timestamp() - join_date) / 86400)
             
             # Leave Message (simplified in channel, DM farewell)
             if settings.get("welcome_enabled"):
@@ -138,9 +138,9 @@ class AutoLogging(commands.Cog):
                                 title="👋 Member Left",
                                 description=f"{member.display_name} left the server.",
                                 color=discord.Color.orange(),
-                                timestamp=datetime.utcnow()
+                                timestamp=datetime.now(datetime.UTC)
                             )
-                            channel_embed.add_field(name="📅 Left", value=f"<t:{int(datetime.utcnow().timestamp())}:F>", inline=True)
+                            channel_embed.add_field(name="📅 Left", value=f"<t:{int(datetime.now(datetime.UTC).timestamp())}:F>", inline=True)
                             await welcome_channel.send(embed=channel_embed)
                         except Exception as e:
                             logger.error(f"Error sending simplified leave message: {e}")
@@ -156,7 +156,7 @@ class AutoLogging(commands.Cog):
                         title="👋 Farewell",
                         description=message_content,
                         color=discord.Color.orange(),
-                        timestamp=datetime.utcnow()
+                        timestamp=datetime.now(datetime.UTC)
                     )
                     await member.send(embed=dm_embed)
                 except Exception:
@@ -169,7 +169,7 @@ class AutoLogging(commands.Cog):
                     title="📤 Member Left",
                     description=f"{member} left the server",
                     color=discord.Color.orange(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_thumbnail(url=member.display_avatar.url)
                 embed.add_field(name="👤 User", value=f"{member} ({member.id})", inline=True)
@@ -205,7 +205,7 @@ class AutoLogging(commands.Cog):
                 "author": message.author,
                 "channel": message.channel,
                 "attachments": [att.url for att in message.attachments],
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.now(datetime.UTC)
             }
             
             # Keep cache size manageable
@@ -231,7 +231,7 @@ class AutoLogging(commands.Cog):
             embed = discord.Embed(
                 title="🗑️ Message Deleted",
                 color=discord.Color.red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             embed.set_author(name=str(message.author), icon_url=message.author.display_avatar.url)
@@ -270,7 +270,7 @@ class AutoLogging(commands.Cog):
             embed = discord.Embed(
                 title="✏️ Message Edited",
                 color=discord.Color.yellow(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             
             embed.set_author(name=str(before.author), icon_url=before.author.display_avatar.url)
@@ -318,7 +318,7 @@ class AutoLogging(commands.Cog):
                     embed = discord.Embed(
                         title="🎭 Member Roles Updated",
                         color=discord.Color.blue(),
-                        timestamp=datetime.utcnow()
+                        timestamp=datetime.now(datetime.UTC)
                     )
                     embed.set_author(name=str(after), icon_url=after.display_avatar.url)
                     embed.add_field(name="👤 Member", value=f"{after.mention} ({after.id})", inline=True)
@@ -343,7 +343,7 @@ class AutoLogging(commands.Cog):
                 embed = discord.Embed(
                     title="📝 Nickname Changed",
                     color=discord.Color.purple(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_author(name=str(after), icon_url=after.display_avatar.url)
                 embed.add_field(name="👤 Member", value=f"{after.mention} ({after.id})", inline=True)
@@ -373,7 +373,7 @@ class AutoLogging(commands.Cog):
                 title="📺 Channel Created",
                 description=f"New channel: {channel.mention}",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="📺 Channel", value=f"{channel.name} ({channel.id})", inline=True)
             embed.add_field(name="🗂️ Type", value=channel.type.name.title(), inline=True)
@@ -402,7 +402,7 @@ class AutoLogging(commands.Cog):
                 title="🗑️ Channel Deleted",
                 description=f"Deleted channel: **{channel.name}**",
                 color=discord.Color.red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.add_field(name="📺 Channel", value=f"{channel.name} ({channel.id})", inline=True)
             embed.add_field(name="🗂️ Type", value=channel.type.name.title(), inline=True)
@@ -436,7 +436,7 @@ class AutoLogging(commands.Cog):
                 embed = discord.Embed(
                     title="🔊 Voice Channel Joined",
                     color=discord.Color.green(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_author(name=str(member), icon_url=member.display_avatar.url)
                 embed.add_field(name="👤 Member", value=member.mention, inline=True)
@@ -447,7 +447,7 @@ class AutoLogging(commands.Cog):
                 embed = discord.Embed(
                     title="🔇 Voice Channel Left",
                     color=discord.Color.orange(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_author(name=str(member), icon_url=member.display_avatar.url)
                 embed.add_field(name="👤 Member", value=member.mention, inline=True)
@@ -458,7 +458,7 @@ class AutoLogging(commands.Cog):
                 embed = discord.Embed(
                     title="🔄 Voice Channel Switched",
                     color=discord.Color.blue(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(datetime.UTC)
                 )
                 embed.set_author(name=str(member), icon_url=member.display_avatar.url)
                 embed.add_field(name="👤 Member", value=member.mention, inline=True)
@@ -488,7 +488,7 @@ class AutoLogging(commands.Cog):
             embed = discord.Embed(
                 title="🔨 Member Banned",
                 color=discord.Color.dark_red(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.set_author(name=str(user), icon_url=user.display_avatar.url)
             embed.add_field(name="👤 User", value=f"{user} ({user.id})", inline=True)
@@ -528,7 +528,7 @@ class AutoLogging(commands.Cog):
             embed = discord.Embed(
                 title="🔓 Member Unbanned",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(datetime.UTC)
             )
             embed.set_author(name=str(user), icon_url=user.display_avatar.url)
             embed.add_field(name="👤 User", value=f"{user} ({user.id})", inline=True)

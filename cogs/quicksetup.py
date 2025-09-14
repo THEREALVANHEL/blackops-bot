@@ -319,7 +319,7 @@ class SetupView(discord.ui.View):
             title="🔧 Current Bot Configuration",
             description=f"Configuration for **{interaction.guild.name}**",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         # Logging Configuration
@@ -395,7 +395,7 @@ class Settings(commands.Cog):
             title="🚀 BlackOps Bot - Complete Setup Wizard",
             description="Welcome to the comprehensive bot configuration system!\n\nClick the buttons below to set up different systems:",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         embed.add_field(
@@ -459,7 +459,7 @@ class Settings(commands.Cog):
             title="⭐ Starboard Configured!",
             description=f"Messages with **{threshold}** `{emoji}` reactions will be sent to {channel.mention}",
             color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         embed.set_thumbnail(url=interaction.guild.icon.url)
         
@@ -475,7 +475,7 @@ class Settings(commands.Cog):
             title="⚙️ Server Configuration Overview",
             description=f"Current settings for **{interaction.guild.name}**",
             color=discord.Color.teal(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(datetime.UTC)
         )
         
         # System Status Overview
@@ -585,7 +585,7 @@ class Settings(commands.Cog):
                             "starboard_message_id": starboard_msg.id,
                             "original_channel_id": channel.id,
                             "reaction_count": reaction.count,
-                            "created_at": datetime.utcnow().timestamp()
+                            "created_at": datetime.now(datetime.UTC).timestamp()
                         }
                         
                         database.db.update_guild_data(payload.guild_id, {

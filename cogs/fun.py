@@ -127,7 +127,7 @@ class Fun(commands.Cog):
             else:
                 result = "Opponent wins!"
                 color = discord.Color.red()
-            embed = discord.Embed(title="🪨📄✂️ RPS Duel Result", color=color, timestamp=datetime.utcnow())
+            embed = discord.Embed(title="🪨📄✂️ RPS Duel Result", color=color, timestamp=datetime.now(datetime.UTC))
             embed.add_field(name="Challenger", value=c_choice.title(), inline=True)
             embed.add_field(name="Opponent", value=o_choice.title(), inline=True)
             embed.set_footer(text=result)
@@ -188,7 +188,7 @@ class Fun(commands.Cog):
             return
         ends_at = asyncio.get_event_loop().time() + duration_minutes * 60
         view = Fun.GiveawayView(interaction.user.id, ends_at)
-        embed = discord.Embed(title="🎉 Giveaway!", description=f"Prize: **{prize}**\nEnds: <t:{int(datetime.utcnow().timestamp() + duration_minutes*60)}:R>", color=discord.Color.gold())
+        embed = discord.Embed(title="🎉 Giveaway!", description=f"Prize: **{prize}**\nEnds: <t:{int(datetime.now(datetime.UTC).timestamp() + duration_minutes*60)}:R>", color=discord.Color.gold())
         await interaction.response.send_message(embed=embed, view=view)
         view.message = await interaction.original_response()
         async def conclude():
@@ -202,11 +202,6 @@ class Fun(commands.Cog):
             result = discord.Embed(title="🎉 Giveaway Winner!", description=f"Winner: <@{winner_id}>\nPrize: **{prize}**", color=discord.Color.green())
             await view.message.edit(embed=result, view=None)
         self.bot.loop.create_task(conclude())
-        
-    @app_commands.command(name="slots", description="Play a slot machine.")
-    async def slots(self, interaction: discord.Interaction):
-        # Placeholder for Slots command
-        await interaction.response.send_message("This command is under development!")
         
     @app_commands.command(name="trivia", description="Start a trivia game.")
     async def trivia(self, interaction: discord.Interaction):
