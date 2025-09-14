@@ -8,7 +8,7 @@ import asyncio
 import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from ui_components import EconomyDisplay, ElegantEmbed, ModernColors, AnimatedProgressBar
+from cogs.ui_components import EconomyDisplay, ElegantEmbed, ModernColors, AnimatedProgressBar
 
 # Enhanced shop items with more variety
 PREMIUM_SHOP_ITEMS = {
