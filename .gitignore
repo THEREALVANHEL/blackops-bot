@@ -14,3 +14,13 @@ bot.log
 # Temporary files
 temp/
 tmp/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
