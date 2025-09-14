@@ -29,6 +29,7 @@ load_dotenv()
 def validate_environment():
     """Validate that all required environment variables are set"""
     issues = []
+    warnings = []
     
     # Check for placeholder values
     token = os.getenv("DISCORD_BOT_TOKEN")
@@ -41,17 +42,17 @@ def validate_environment():
     
     mongodb_uri = os.getenv("MONGODB_URI")
     if mongodb_uri and ("YOUR_MONGODB_URI_HERE" in mongodb_uri or "sZpyOna6F1h0lLJa" in mongodb_uri):
-        logger.warning("MongoDB URI contains example credentials - please update with your own")
+        warnings.append("MongoDB URI contains example credentials - please update with your own")
     
     gemini_key = os.getenv("GEMINI_API_KEY")
     if gemini_key and ("YOUR_API_KEY" in gemini_key or "AIzaSyC7GMoYDTwSMALus4fY8MWkVM1zfGgHuuY" in gemini_key):
-        logger.warning("Gemini API key contains example value - AI features may not work")
+        warnings.append("Gemini API key contains example value - AI features may not work")
     
     if issues:
         for issue in issues:
             logger.error(f"❌ {issue}")
-        return False
-    return True
+        return False, issues, warnings
+    return True, issues, warnings
 
 # Validate required environment variables
 required_vars = ['DISCORD_BOT_TOKEN', 'SERVER_ID']
@@ -60,9 +61,13 @@ if missing_vars:
     logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
     sys.exit(1)
 
-if not validate_environment():
+valid, issues, warnings = validate_environment()
+if not valid:
     logger.error("Environment validation failed. Please check your .env file.")
     sys.exit(1)
+
+for warning in warnings:
+    logger.warning(f"⚠️ {warning}")
 
 # Define intents with all necessary permissions
 intents = discord.Intents.default()
@@ -108,7 +113,7 @@ class BlackOpsBot(commands.Bot):
         cog_list = [
             "admin",                    # Admin commands
             "ai",                      # AI integration  
-            "autologgin",              # Auto logging (fixed typo)
+            "autologging",             # Auto logging (fixed typo)
             "cookies",                 # Cookie management
             "core_user_system",        # Core user system
             "enhanced_pet_system",     # Pet system
@@ -116,7 +121,7 @@ class BlackOpsBot(commands.Bot):
             "fixed_jobsystem",         # Job system
             "fun",                     # Fun commands
             "moderation",              # Moderation tools
-            "quicksetup",              # Setup wizard (use this instead of settings)
+            "quicksetup",              # Setup wizard
             "tickets",                 # Support tickets
             "ui_components",           # UI components
             "unified_economy"          # Economy system
