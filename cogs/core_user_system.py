@@ -7,8 +7,212 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
-# Import the new UI components
-from ui_components import EmbedBuilder, BotColors, LeaderboardView
+class BotColors:
+    """Professional color scheme for consistent bot design"""
+    PRIMARY = 0x5865F2      # Discord Blurple
+    SUCCESS = 0x57F287      # Green
+    WARNING = 0xFEE75C      # Yellow
+    ERROR = 0xED4245        # Red
+    INFO = 0x5DADE2         # Light Blue
+    SECONDARY = 0x99AAB5    # Gray
+    PREMIUM = 0xF1C40F      # Gold
+    LEVEL_UP = 0xE74C3C     # Bright Red
+    ECONOMY = 0x2ECC71      # Emerald Green
+    MODERATION = 0xE67E22   # Orange
+
+class EmbedBuilder:
+    """Enhanced embed builder with modern design patterns"""
+    
+    @staticmethod
+    def create_embed(
+        title: str = None,
+        description: str = None,
+        color: int = BotColors.PRIMARY,
+        author_name: str = None,
+        author_icon: str = None,
+        thumbnail: str = None,
+        image: str = None,
+        footer_text: str = None,
+        footer_icon: str = None,
+        timestamp: bool = True,
+        url: str = None
+    ) -> discord.Embed:
+        """Create a professional embed with consistent styling"""
+        
+        embed = discord.Embed(color=color)
+        
+        if title:
+            embed.title = title
+        if description:
+            embed.description = description
+        if url:
+            embed.url = url
+            
+        if author_name:
+            embed.set_author(name=author_name, icon_url=author_icon)
+        if thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+        if image:
+            embed.set_image(url=image)
+            
+        if footer_text:
+            embed.set_footer(text=footer_text, icon_url=footer_icon)
+        elif timestamp:
+            embed.timestamp = datetime.utcnow()
+            
+        return embed
+    
+    @staticmethod
+    def success_embed(title: str, description: str = None, **kwargs) -> discord.Embed:
+        """Create a success embed"""
+        return EmbedBuilder.create_embed(
+            title=f"✅ {title}",
+            description=description,
+            color=BotColors.SUCCESS,
+            **kwargs
+        )
+    
+    @staticmethod
+    def error_embed(title: str, description: str = None, **kwargs) -> discord.Embed:
+        """Create an error embed"""
+        return EmbedBuilder.create_embed(
+            title=f"❌ {title}",
+            description=description,
+            color=BotColors.ERROR,
+            **kwargs
+        )
+    
+    @staticmethod
+    def info_embed(title: str, description: str = None, **kwargs) -> discord.Embed:
+        """Create an info embed"""
+        return EmbedBuilder.create_embed(
+            title=f"ℹ️ {title}",
+            description=description,
+            color=BotColors.INFO,
+            **kwargs
+        )
+
+class LeaderboardView(discord.ui.View):
+    """Enhanced leaderboard with pagination and filters"""
+    
+    def __init__(self, bot, guild_id: int, leaderboard_type: str, user_id: int = None):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guild_id = guild_id
+        self.leaderboard_type = leaderboard_type
+        self.user_id = user_id
+        self.current_page = 1
+        self.items_per_page = 10
+        
+    async def create_leaderboard_embed(self, page: int = 1):
+        """Create leaderboard embed with current data"""
+        
+        if self.leaderboard_type == "daily_streak":
+            leaderboard_data = database.db.get_streak_leaderboard(page, self.items_per_page)
+        else:
+            leaderboard_data = database.db.get_paginated_leaderboard(self.leaderboard_type, page, self.items_per_page)
+        
+        # Type mapping for titles and emojis
+        type_info = {
+            "xp": {"title": "⭐ XP Leaderboard", "emoji": "⭐"},
+            "coins": {"title": "💰 Coins Leaderboard", "emoji": "💰"},
+            "cookies": {"title": "🍪 Cookies Leaderboard", "emoji": "🍪"},
+            "daily_streak": {"title": "🔥 Daily Streak Leaderboard", "emoji": "🔥"},
+            "work_count": {"title": "💼 Work Sessions Leaderboard", "emoji": "💼"}
+        }
+        
+        info = type_info.get(self.leaderboard_type, {"title": "📊 Leaderboard", "emoji": "📊"})
+        
+        embed = EmbedBuilder.create_embed(
+            title=f"{info['title']} - Page {leaderboard_data['current_page']}/{leaderboard_data['total_pages']}",
+            color=BotColors.PREMIUM
+        )
+        
+        if not leaderboard_data['users']:
+            embed.description = "No users found for this leaderboard."
+            return embed
+        
+        # Create leaderboard text
+        leaderboard_text = ""
+        for i, entry in enumerate(leaderboard_data['users']):
+            user_id = entry.get("user_id")
+            user = self.bot.get_user(user_id)
+            user_name = user.display_name if user else f"User {user_id}"
+            
+            rank = (leaderboard_data['current_page'] - 1) * self.items_per_page + i + 1
+            value = entry.get(self.leaderboard_type, 0)
+            
+            # Special formatting based on type
+            if self.leaderboard_type == "xp":
+                level = entry.get("level", 1)
+                leaderboard_text += f"`#{rank:2d}` **{user_name}** - Level {level} ({value:,} XP)\n"
+            else:
+                leaderboard_text += f"`#{rank:2d}` **{user_name}** - {info['emoji']} {value:,}\n"
+        
+        embed.description = leaderboard_text
+        
+        # Add user's position if they have data
+        if self.user_id:
+            user_data = database.db.get_user_data(self.user_id)
+            user_value = user_data.get(self.leaderboard_type, 0)
+            if user_value > 0:
+                embed.add_field(
+                    name="🎯 Your Stats",
+                    value=f"**Score:** {info['emoji']} {user_value:,}",
+                    inline=True
+                )
+        
+        embed.add_field(
+            name="📊 Stats",
+            value=f"Page {leaderboard_data['current_page']} of {leaderboard_data['total_pages']}\n{leaderboard_data['total_users']:,} total users",
+            inline=True
+        )
+        
+        embed.set_footer(text="Updated in real-time • Use buttons to navigate")
+        return embed
+    
+    @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.secondary)
+    async def first_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_page = 1
+        embed = await self.create_leaderboard_embed(self.current_page)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.primary)
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_page = max(1, self.current_page - 1)
+        embed = await self.create_leaderboard_embed(self.current_page)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.primary)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Get max pages from current data
+        if self.leaderboard_type == "daily_streak":
+            data = database.db.get_streak_leaderboard(1, self.items_per_page)
+        else:
+            data = database.db.get_paginated_leaderboard(self.leaderboard_type, 1, self.items_per_page)
+        
+        max_pages = data['total_pages']
+        self.current_page = min(max_pages, self.current_page + 1)
+        embed = await self.create_leaderboard_embed(self.current_page)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.secondary)
+    async def last_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Get max pages from current data
+        if self.leaderboard_type == "daily_streak":
+            data = database.db.get_streak_leaderboard(1, self.items_per_page)
+        else:
+            data = database.db.get_paginated_leaderboard(self.leaderboard_type, 1, self.items_per_page)
+        
+        max_pages = data['total_pages']
+        self.current_page = max_pages
+        embed = await self.create_leaderboard_embed(self.current_page)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(emoji="🔄", style=discord.ButtonStyle.success, row=1)
+    async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = await self.create_leaderboard_embed(self.current_page)
+        await interaction.response.edit_message(embed=embed, view=self)
 
 class ProfileView(discord.ui.View):
     """Interactive view for user profiles"""
@@ -167,8 +371,11 @@ class CoreUserSystem(commands.Cog):
         bot_latency = round(self.bot.latency * 1000)
         
         # Database health check
-        db_health = database.db.get_database_health()
-        db_status = "🟢 Connected" if db_health["connected"] else "🟡 Memory Mode"
+        try:
+            db_health = database.db.get_database_health()
+            db_status = "🟢 Connected" if db_health["connected"] else "🟡 Memory Mode"
+        except Exception as e:
+            db_status = "🔴 Error"
         
         embed = EmbedBuilder.success_embed(
             title="Pong! System Status"
@@ -212,8 +419,11 @@ class CoreUserSystem(commands.Cog):
         embed.add_field(name="📊 Commands", value=f"`{len(self.bot.tree.get_commands())}`", inline=True)
         
         # Database stats
-        db_stats = database.db.get_database_stats()
-        embed.add_field(name="🗄️ Database", value=f"`{db_stats['users']:,}` users\n`{db_stats['guilds']}` guilds\n{db_stats['storage_type']}", inline=True)
+        try:
+            db_stats = database.db.get_database_stats()
+            embed.add_field(name="🗄️ Database", value=f"`{db_stats['users']:,}` users\n`{db_stats['guilds']}` guilds\n{db_stats['storage_type']}", inline=True)
+        except Exception as e:
+            embed.add_field(name="🗄️ Database", value="Stats unavailable", inline=True)
         
         # Features
         features = [
@@ -316,8 +526,12 @@ class CoreUserSystem(commands.Cog):
             embed.add_field(name="🐾 Pets", value="*No pets*\nUse `/adopt` to get one!", inline=True)
         
         # Special items and achievements
-        temp_purchases = database.db.get_active_temporary_purchases(target_user.id)
-        active_boosts = len(temp_purchases)
+        try:
+            temp_purchases = database.db.get_active_temporary_purchases(target_user.id)
+            active_boosts = len(temp_purchases)
+        except Exception:
+            active_boosts = 0
+            
         achievements = user_data.get("achievements", [])
         
         embed.add_field(name="✨ Special", 
@@ -366,7 +580,10 @@ class CoreUserSystem(commands.Cog):
 
     @app_commands.command(name="myitems", description="View your active items, boosts, and temporary purchases.")
     async def myitems(self, interaction: discord.Interaction):
-        purchases = database.db.get_active_temporary_purchases(interaction.user.id)
+        try:
+            purchases = database.db.get_active_temporary_purchases(interaction.user.id)
+        except Exception as e:
+            purchases = []
         
         embed = EmbedBuilder.create_embed(
             title=f"✨ {interaction.user.display_name}'s Active Items",
@@ -511,18 +728,24 @@ class CoreUserSystem(commands.Cog):
         
         # Basic XP reward for messages
         xp_gained = random.randint(5, 15)
-        result = database.db.add_xp(message.author.id, xp_gained)
+        try:
+            result = database.db.add_xp(message.author.id, xp_gained)
+        except Exception as e:
+            return  # Skip if database error
         
         # Update message count
-        user_data = database.db.get_user_data(message.author.id)
-        stats = user_data.get("stats", {})
-        stats["messages_sent"] = stats.get("messages_sent", 0) + 1
-        stats["last_message"] = time.time()
-        
-        database.db.update_user_data(message.author.id, {
-            "stats": stats,
-            "last_seen": datetime.utcnow()
-        })
+        try:
+            user_data = database.db.get_user_data(message.author.id)
+            stats = user_data.get("stats", {})
+            stats["messages_sent"] = stats.get("messages_sent", 0) + 1
+            stats["last_message"] = time.time()
+            
+            database.db.update_user_data(message.author.id, {
+                "stats": stats,
+                "last_seen": datetime.utcnow()
+            })
+        except Exception as e:
+            pass  # Non-critical error
         
         # Level up notification
         if result.get("leveled_up"):
@@ -542,7 +765,10 @@ class CoreUserSystem(commands.Cog):
                 # Award level rewards
                 if "coins" in level_rewards:
                     coins = int(level_rewards.split(" ")[0])
-                    database.db.add_coins(message.author.id, coins)
+                    try:
+                        database.db.add_coins(message.author.id, coins)
+                    except Exception:
+                        pass
             
             try:
                 await message.channel.send(embed=embed)
