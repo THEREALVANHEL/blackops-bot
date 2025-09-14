@@ -474,7 +474,22 @@ class EnhancedPetSystem(commands.Cog):
                 await interaction.response.send_message(f"❌ You don't have a pet named '{pet_name}'.", ephemeral=True)
                 return
         else:
-            selected_pet = pets[0]  # Use first pet if none specified
+            # If no pet specified and action is status, show a list of pets
+            if action == "status":
+                embed = discord.Embed(
+                    title=f"🐾 {interaction.user.display_name}'s Pets",
+                    description="Choose a pet name with `/pet status <pet_name>` or use the dropdown below in future updates.",
+                    color=discord.Color.blurple(),
+                    timestamp=datetime.utcnow()
+                )
+                embed.set_thumbnail(url=interaction.user.display_avatar.url)
+                pet_lines = []
+                for p in pets:
+                    pet_lines.append(f"{p.get('emoji','🐾')} **{p.get('name','Unnamed')}** — {p.get('species','Unknown')} (Lv.{p.get('level',1)})")
+                embed.add_field(name="Your Pets", value="\n".join(pet_lines[:15]), inline=False)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            selected_pet = pets[0]  # Default to first pet for other actions
         
         if action == "status":
             await self.show_pet_status(interaction, selected_pet, pets)

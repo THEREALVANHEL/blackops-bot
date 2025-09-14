@@ -246,6 +246,14 @@ class Events(commands.Cog):
                 embed.set_image(url=image)
             except Exception:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
+        else:
+            try:
+                if interaction.attachments:
+                    attachment = interaction.attachments[0]
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        embed.set_image(url=attachment.url)
+            except Exception:
+                pass
         
         embed.set_author(name=f"Logged by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
         embed.set_footer(text="Game Statistics • BlackOps Gaming")
@@ -308,6 +316,14 @@ class Events(commands.Cog):
                 embed.set_image(url=image)
             except Exception:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
+        else:
+            try:
+                if interaction.attachments:
+                    attachment = interaction.attachments[0]
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        embed.set_image(url=attachment.url)
+            except Exception:
+                pass
         
         embed.set_author(
             name=f"Announcement by {interaction.user.display_name}",

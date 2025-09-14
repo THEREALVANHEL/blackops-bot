@@ -610,12 +610,15 @@ class DatabaseManager:
             }
     
     def add_xp(self, user_id: int, amount: int) -> Dict[str, Any]:
-        """Add XP and handle level ups with transaction safety"""
+        """Add XP and handle level ups with a harder progression curve"""
         try:
             user_data = self.get_user_data(user_id)
             old_level = user_data.get("level", 1)
             old_xp = user_data.get("xp", 0)
             new_xp = old_xp + amount
+            # Ensure XP does not go below zero
+            if new_xp < 0:
+                new_xp = 0
             new_level = self._calculate_level(new_xp)
             
             update_data = {
@@ -623,7 +626,7 @@ class DatabaseManager:
                 "level": new_level
             }
             
-            # Add level-up rewards
+            # Add level-up rewards (reduced to slow progression)
             level_rewards = {}
             if new_level > old_level:
                 level_rewards = self._calculate_level_rewards(new_level, old_level)
@@ -652,13 +655,19 @@ class DatabaseManager:
             }
     
     def _calculate_level(self, xp: int) -> int:
-        """Calculate level based on XP with improved formula"""
-        return int((xp / 100) ** 0.5) + 1
+        """Calculate level based on XP with a harder curve.
+        New curve: level ~ floor((xp / 1000) ** 0.75) + 1 which is significantly slower.
+        """
+        # Guard
+        if xp <= 0:
+            return 1
+        return max(1, int((xp / 1000) ** 0.75) + 1)
     
     def _calculate_level_rewards(self, new_level: int, old_level: int) -> Dict[str, Any]:
         """Calculate rewards for level ups"""
         levels_gained = new_level - old_level
-        base_coins = 100
+        # Lower base rewards to match harder curve
+        base_coins = 50
         
         rewards = {
             "coins": base_coins * levels_gained * new_level,
@@ -673,7 +682,7 @@ class DatabaseManager:
         if new_level == 50:
             rewards["items"].append("premium_boost")
         if new_level == 100:
-            rewards["coins"] += 10000
+            rewards["coins"] += 5000
             rewards["items"].append("legendary_pet_egg")
         
         return rewards
@@ -1079,7 +1088,7 @@ class DatabaseManager:
             return {"success": False}
     
     def claim_daily_bonus(self, user_id: int) -> Dict[str, Any]:
-        """Enhanced daily bonus system with comprehensive tracking"""
+        """Enhanced daily bonus system with weekly streak bonus and streak reset at 7 days"""
         try:
             user_data = self.get_user_data(user_id)
             current_time = time.time()
@@ -1114,13 +1123,7 @@ class DatabaseManager:
             # Milestone bonuses
             milestone_bonus = 0
             if streak == 7:
-                milestone_bonus = 500
-            elif streak == 30:
-                milestone_bonus = 2000
-            elif streak == 100:
-                milestone_bonus = 10000
-            elif streak == 365:
-                milestone_bonus = 50000
+                milestone_bonus = 1000  # Bigger weekly bonus
             
             total_coins += milestone_bonus
             
@@ -1128,10 +1131,11 @@ class DatabaseManager:
             self.add_coins(user_id, total_coins)
             xp_result = self.add_xp(user_id, total_xp)
             
-            # Update daily data
+            # Update daily data; reset streak after weekly bonus at 7
+            new_streak = 0 if streak == 7 else streak
             self.update_user_data(user_id, {
                 "last_daily": current_time,
-                "daily_streak": streak
+                "daily_streak": new_streak
             })
             
             return {

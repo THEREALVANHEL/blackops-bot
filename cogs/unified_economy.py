@@ -8,6 +8,7 @@ import asyncio
 import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+from ui_components import EconomyDisplay, ElegantEmbed, ModernColors, AnimatedProgressBar
 
 # Enhanced shop items with more variety
 PREMIUM_SHOP_ITEMS = {
@@ -229,6 +230,25 @@ class UnifiedEconomy(commands.Cog):
         
         view = EconomyView(target_user.id, "balance")
         await interaction.response.send_message(embed=embed, view=view)
+
+    @app_commands.command(name="profile", description="View a polished profile card with progress bars and stats.")
+    @app_commands.describe(user="Whose profile to view (optional)")
+    async def profile(self, interaction: discord.Interaction, user: discord.Member = None):
+        target = user or interaction.user
+        user_data = database.db.get_user_data(target.id)
+        # Reuse UI components for modern display
+        profile_embed = EconomyDisplay.create_balance_embed(target, user_data)
+        # Add extra stats section
+        level = user_data.get("level", 1)
+        xp = user_data.get("xp", 0)
+        next_level_xp = ((level + 1) ** 2) * 100
+        current_level_xp = (level ** 2) * 100
+        xp_bar = AnimatedProgressBar.xp_bar(xp - current_level_xp, next_level_xp - current_level_xp, level)
+        profile_embed.add_field(name="⭐ XP Progress", value=xp_bar, inline=False)
+        # Social and economy quick stats
+        profile_embed.add_field(name="🎯 Commands Used", value=f"`{user_data.get('stats', {}).get('commands_used', 0):,}`", inline=True)
+        profile_embed.add_field(name="🕒 Time Active", value=f"`{user_data.get('stats', {}).get('time_active', 0):,}`", inline=True)
+        await interaction.response.send_message(embed=profile_embed)
 
     @app_commands.command(name="daily", description="Claim enhanced daily rewards with streak bonuses.")
     async def daily(self, interaction: discord.Interaction):

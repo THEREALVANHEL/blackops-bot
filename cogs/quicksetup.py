@@ -13,67 +13,67 @@ class SetupView(discord.ui.View):
 
     @discord.ui.button(label="📝 Logging Channels", style=discord.ButtonStyle.primary, emoji="📝")
     async def setup_logging(self, interaction: discord.Interaction, button: discord.ui.Button):
-        class LoggingModal(discord.ui.Modal):
+        class ChannelPicker(discord.ui.View):
             def __init__(self):
-                super().__init__(title="Setup Logging Channels")
+                super().__init__(timeout=180)
+                self.modlog = None
+                self.joinleave = None
+                self.messagelog = None
+                
+                self.add_item(self.ModlogSelect(self))
+                self.add_item(self.JoinLeaveSelect(self))
+                self.add_item(self.MessageLogSelect(self))
+                self.add_item(self.SaveButton(self))
             
-            modlog_channel = discord.ui.TextInput(
-                label="Moderation Log Channel",
-                placeholder="#mod-logs or channel ID",
-                required=True
-            )
+            class ModlogSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Moderation Log Channel", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    self.parent.modlog = self.values[0].id
+                    await interaction.response.defer()
             
-            join_leave_channel = discord.ui.TextInput(
-                label="Join/Leave Log Channel", 
-                placeholder="#member-logs or channel ID",
-                required=True
-            )
+            class JoinLeaveSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Join/Leave Log Channel", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    self.parent.joinleave = self.values[0].id
+                    await interaction.response.defer()
             
-            message_log_channel = discord.ui.TextInput(
-                label="Message Log Channel",
-                placeholder="#message-logs or channel ID",
-                required=True
-            )
+            class MessageLogSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Message Log Channel", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    self.parent.messagelog = self.values[0].id
+                    await interaction.response.defer()
             
-            async def on_submit(self, modal_interaction):
-                try:
-                    # Parse channel inputs
-                    def parse_channel(channel_input):
-                        if channel_input.startswith('<#') and channel_input.endswith('>'):
-                            return int(channel_input[2:-1])
-                        elif channel_input.startswith('#'):
-                            channel = discord.utils.get(modal_interaction.guild.channels, name=channel_input[1:])
-                            return channel.id if channel else None
-                        else:
-                            return int(channel_input)
-                    
-                    modlog_id = parse_channel(self.modlog_channel.value)
-                    joinleave_id = parse_channel(self.join_leave_channel.value) 
-                    messagelog_id = parse_channel(self.message_log_channel.value)
-                    
-                    # Update database
-                    database.db.update_guild_data(interaction.guild.id, {
-                        "settings.modlog_channel": modlog_id,
-                        "settings.join_leave_channel": joinleave_id,
-                        "settings.message_log_channel": messagelog_id,
-                        "settings.logging_enabled": True
-                    })
-                    
-                    embed = discord.Embed(
-                        title="✅ Logging Channels Configured",
-                        description="Successfully set up logging channels!",
-                        color=discord.Color.green()
-                    )
-                    embed.add_field(name="Mod Logs", value=f"<#{modlog_id}>", inline=True)
-                    embed.add_field(name="Join/Leave", value=f"<#{joinleave_id}>", inline=True)
-                    embed.add_field(name="Message Logs", value=f"<#{messagelog_id}>", inline=True)
-                    
-                    await modal_interaction.response.send_message(embed=embed, ephemeral=True)
-                    
-                except Exception as e:
-                    await modal_interaction.response.send_message(f"❌ Error setting up logging: {str(e)}", ephemeral=True)
-        
-        await interaction.response.send_modal(LoggingModal())
+            class SaveButton(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Save", style=discord.ButtonStyle.success)
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    try:
+                        if not all([self.parent.modlog, self.parent.joinleave, self.parent.messagelog]):
+                            await interaction.response.send_message("❌ Please select all three channels.", ephemeral=True)
+                            return
+                        database.db.update_guild_data(interaction.guild.id, {
+                            "settings.modlog_channel": self.parent.modlog,
+                            "settings.join_leave_channel": self.parent.joinleave,
+                            "settings.message_log_channel": self.parent.messagelog,
+                            "settings.logging_enabled": True
+                        })
+                        embed = discord.Embed(title="✅ Logging Channels Configured", color=discord.Color.green())
+                        embed.add_field(name="Mod Logs", value=f"<#{self.parent.modlog}>", inline=True)
+                        embed.add_field(name="Join/Leave", value=f"<#{self.parent.joinleave}>", inline=True)
+                        embed.add_field(name="Message Logs", value=f"<#{self.parent.messagelog}>", inline=True)
+                        await interaction.response.edit_message(embed=embed, view=None)
+                    except Exception as e:
+                        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+
+        embed = discord.Embed(title="📝 Configure Logging", description="Pick channels for moderation, join/leave, and message logs.", color=discord.Color.blurple())
+        await interaction.response.send_message(embed=embed, view=ChannelPicker(), ephemeral=True)
 
     @discord.ui.button(label="🎫 Ticket System", style=discord.ButtonStyle.secondary, emoji="🎫")
     async def setup_tickets(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -132,62 +132,56 @@ class SetupView(discord.ui.View):
 
     @discord.ui.button(label="⭐ Starboard", style=discord.ButtonStyle.secondary, emoji="⭐")
     async def setup_starboard(self, interaction: discord.Interaction, button: discord.ui.Button):
-        class StarboardModal(discord.ui.Modal):
+        class StarboardPicker(discord.ui.View):
             def __init__(self):
-                super().__init__(title="Setup Starboard")
-            
-            starboard_channel = discord.ui.TextInput(
-                label="Starboard Channel",
-                placeholder="#starboard or channel ID",
-                required=True
-            )
-            
-            emoji = discord.ui.TextInput(
-                label="Starboard Emoji",
-                placeholder="⭐ (emoji for starboard)",
-                required=True,
-                max_length=10
-            )
-            
-            threshold = discord.ui.TextInput(
-                label="Reaction Threshold",
-                placeholder="3 (number of reactions needed)",
-                required=True,
-                max_length=3
-            )
-            
-            async def on_submit(self, modal_interaction):
-                try:
-                    if self.starboard_channel.value.startswith('<#'):
-                        channel_id = int(self.starboard_channel.value[2:-1])
-                    else:
-                        channel_id = int(self.starboard_channel.value)
-                    
-                    threshold_num = int(self.threshold.value)
-                    emoji = self.emoji.value.strip()
-                    
+                super().__init__(timeout=180)
+                self.channel_id = None
+                self.add_item(self.StarboardSelect(self))
+                self.add_item(self.EmojiInput(self))
+                self.add_item(self.ThresholdInput(self))
+                self.add_item(self.SaveButton(self))
+            class StarboardSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Starboard Channel", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    self.parent.channel_id = self.values[0].id
+                    await interaction.response.defer()
+            class EmojiInput(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Set Emoji (⭐)", style=discord.ButtonStyle.secondary)
+                    self.parent = parent
+                    self.parent.emoji = "⭐"
+                async def callback(self, interaction: discord.Interaction):
+                    await interaction.response.send_message("Reply with the emoji to use for starboard.", ephemeral=True)
+            class ThresholdInput(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Set Threshold (3)", style=discord.ButtonStyle.secondary)
+                    self.parent = parent
+                    self.parent.threshold = 3
+                async def callback(self, interaction: discord.Interaction):
+                    await interaction.response.send_message("Reply with the number of reactions required.", ephemeral=True)
+            class SaveButton(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Save", style=discord.ButtonStyle.success)
+                    self.parent = parent
+                async def callback(self, interaction: discord.Interaction):
+                    if not self.parent.channel_id:
+                        await interaction.response.send_message("❌ Select a channel first.", ephemeral=True)
+                        return
                     database.db.update_guild_data(interaction.guild.id, {
-                        "settings.starboard_channel": channel_id,
-                        "settings.starboard_emoji": emoji,
-                        "settings.starboard_threshold": threshold_num,
+                        "settings.starboard_channel": self.parent.channel_id,
+                        "settings.starboard_emoji": getattr(self.parent, 'emoji', '⭐'),
+                        "settings.starboard_threshold": getattr(self.parent, 'threshold', 3),
                         "settings.starboard_enabled": True
                     })
-                    
-                    embed = discord.Embed(
-                        title="✅ Starboard Configured",
-                        description="Starboard system is now active!",
-                        color=discord.Color.gold()
-                    )
-                    embed.add_field(name="Channel", value=f"<#{channel_id}>", inline=True)
-                    embed.add_field(name="Emoji", value=emoji, inline=True)
-                    embed.add_field(name="Threshold", value=f"{threshold_num} reactions", inline=True)
-                    
-                    await modal_interaction.response.send_message(embed=embed, ephemeral=True)
-                    
-                except Exception as e:
-                    await modal_interaction.response.send_message(f"❌ Error setting up starboard: {str(e)}", ephemeral=True)
-        
-        await interaction.response.send_modal(StarboardModal())
+                    embed = discord.Embed(title="✅ Starboard Configured", color=discord.Color.gold())
+                    embed.add_field(name="Channel", value=f"<#{self.parent.channel_id}>", inline=True)
+                    embed.add_field(name="Emoji", value=getattr(self.parent, 'emoji', '⭐'), inline=True)
+                    embed.add_field(name="Threshold", value=str(getattr(self.parent, 'threshold', 3)), inline=True)
+                    await interaction.response.edit_message(embed=embed, view=None)
+        embed = discord.Embed(title="⭐ Configure Starboard", description="Pick a channel and confirm settings.", color=discord.Color.gold())
+        await interaction.response.send_message(embed=embed, view=StarboardPicker(), ephemeral=True)
 
     @discord.ui.button(label="🎉 Welcome/Leave", style=discord.ButtonStyle.green, emoji="🎉")
     async def setup_welcome(self, interaction: discord.Interaction, button: discord.ui.Button):
