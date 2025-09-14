@@ -2,7 +2,10 @@ import os
 import discord
 from discord.ext import commands
 from discord import app_commands
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 from dotenv import load_dotenv
 import asyncio
 import random
@@ -20,18 +23,21 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Validate and configure the Gemini API
+# Validate and configure the Gemini API (optional)
 gemini_api_key = os.getenv("GEMINI_API_KEY")
-if not gemini_api_key:
-    logger.error("GEMINI_API_KEY environment variable not found!")
-    raise ValueError("GEMINI_API_KEY environment variable is required")
-
-try:
-    genai.configure(api_key=gemini_api_key)
-    logger.info("Gemini API configured successfully")
-except Exception as e:
-    logger.error(f"Failed to configure Gemini API: {e}")
-    raise
+AI_ENABLED = False
+if genai is not None and gemini_api_key:
+    try:
+        genai.configure(api_key=gemini_api_key)
+        AI_ENABLED = True
+        logger.info("Gemini API configured successfully")
+    except Exception as e:
+        logger.warning(f"Failed to configure Gemini API, AI features disabled: {e}")
+else:
+    if genai is None:
+        logger.warning("google-generativeai not installed; AI features disabled")
+    else:
+        logger.warning("GEMINI_API_KEY not set; AI features disabled")
 
 class ConversationManager:
     """Manages AI conversations with memory limits and cleanup"""
@@ -437,7 +443,7 @@ class AI(commands.Cog):
             # Safe avatar URL handling
             try:
                 avatar_url = interaction.user.display_avatar.url
-            except:
+            except Exception:
                 avatar_url = None
             
             embed.set_author(
@@ -551,7 +557,7 @@ User: {message}
             # Safe bot avatar URL handling
             try:
                 bot_avatar_url = self.bot.user.display_avatar.url if self.bot.user else None
-            except:
+            except Exception:
                 bot_avatar_url = None
             
             embed.set_author(
@@ -854,6 +860,9 @@ User: {message}
 
 async def setup(bot: commands.Bot):
     """Setup function for the AI cog"""
+    if not AI_ENABLED:
+        logger.warning("Skipping AI cog setup because AI is disabled")
+        return
     try:
         await bot.add_cog(AI(bot))
         logger.info("AI cog added successfully")

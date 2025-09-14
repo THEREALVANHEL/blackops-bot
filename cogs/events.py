@@ -208,7 +208,7 @@ class Events(commands.Cog):
         # Create view with join/leave buttons
         view = EventJoinView(event_id, event_data)
         
-        await interaction.response.send_message(f"@everyone", embed=embed, view=view)
+        await interaction.response.send_message("@everyone", embed=embed, view=view)
         
         # Schedule event start notification
         asyncio.create_task(self._schedule_event_start(event_id, start_timestamp, interaction.channel))
@@ -244,7 +244,7 @@ class Events(commands.Cog):
         if image:
             try:
                 embed.set_image(url=image)
-            except:
+            except Exception:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
         
         embed.set_author(name=f"Logged by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
@@ -306,7 +306,7 @@ class Events(commands.Cog):
         if image:
             try:
                 embed.set_image(url=image)
-            except:
+            except Exception:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
         
         embed.set_author(
@@ -344,7 +344,7 @@ class Events(commands.Cog):
             
             try:
                 await channel.send(embed=embed)
-            except:
+            except Exception:
                 pass  # Channel might be deleted or bot lacks permissions
             
             # Remove event from active events after it starts

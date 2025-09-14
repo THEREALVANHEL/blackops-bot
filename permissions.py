@@ -107,7 +107,7 @@ def permission_required(required_level: int, error_message: str = None):
             if error_message:
                 try:
                     await interaction.response.send_message(error_message, ephemeral=True)
-                except:
+                except Exception:
                     pass  # Interaction might already be responded to
             
             return False

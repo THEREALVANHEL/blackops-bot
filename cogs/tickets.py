@@ -66,7 +66,7 @@ class TicketControlView(discord.ui.View):
                     
                     await modal_interaction.response.send_message(f"✅ Added {member.mention} to this ticket.", ephemeral=True)
                     
-                except ValueError:
+                except (ValueError, TypeError):
                     await modal_interaction.response.send_message("❌ Invalid user ID format.", ephemeral=True)
                 except Exception as e:
                     await modal_interaction.response.send_message(f"❌ Error adding user: {str(e)}", ephemeral=True)
@@ -138,15 +138,12 @@ class TicketControlView(discord.ui.View):
                 embed.add_field(name="Closed at", value=f"<t:{int(time.time())}:F>", inline=False)
                 
                 try:
-                    # Create transcript file
-                    transcript_file = discord.File(
-                        fp=transcript.encode('utf-8'),
-                        filename=f"transcript-{interaction.channel.name}.txt"
-                    )
-                    
+                    from io import BytesIO
+                    buffer = BytesIO(transcript.encode('utf-8'))
+                    transcript_file = discord.File(buffer, filename=f"transcript-{interaction.channel.name}.txt")
                     await creator.send(embed=embed, file=transcript_file)
                     transcript_sent = True
-                except:
+                except Exception:
                     transcript_sent = False
             else:
                 transcript_sent = False

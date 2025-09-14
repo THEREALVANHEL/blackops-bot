@@ -315,14 +315,10 @@ class DatabaseManager:
             # Try MongoDB first
             if self.connected_to_mongodb:
                 with self._safe_operation(f"update_user_data_{user_id}"):
-                    # Handle nested field updates
                     update_doc = {}
                     for key, value in data.items():
-                        if '.' in key:
-                            # Handle dot notation for nested fields
-                            update_doc[f"${key}"] = value
-                        else:
-                            update_doc[key] = value
+                        # Always set via $set, allowing dot-notation for nested fields
+                        update_doc[key] = value
                     
                     result = self.users_collection.update_one(
                         {"user_id": user_id},
@@ -718,13 +714,10 @@ class DatabaseManager:
             # Try MongoDB first
             if self.connected_to_mongodb:
                 with self._safe_operation(f"update_guild_data_{guild_id}"):
-                    # Handle nested field updates
                     update_doc = {}
                     for key, value in data.items():
-                        if '.' in key:
-                            update_doc[f"${key}"] = value
-                        else:
-                            update_doc[key] = value
+                        # Always set via $set, allowing dot-notation for nested fields
+                        update_doc[key] = value
                     
                     result = self.guilds_collection.update_one(
                         {"guild_id": guild_id},

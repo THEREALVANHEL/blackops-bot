@@ -251,5 +251,5 @@ class Settings(commands.Cog):
             logger.error(f"Error in starboard reaction handler: {e}")
 
 
-async def setup(bot: commands.Cog):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Settings(bot))

@@ -234,7 +234,7 @@ class BlackOpsBot(commands.Bot):
                 await interaction.followup.send(message, ephemeral=True)
             else:
                 await interaction.response.send_message(message, ephemeral=True)
-        except:
+        except Exception:
             pass  # Interaction might have already been handled
 
     async def on_guild_join(self, guild):
@@ -334,8 +334,12 @@ def restart():
         return jsonify({"error": "Unauthorized"}), 401
     
     logger.info("🔄 Restart requested via API")
-    # Graceful shutdown
-    asyncio.create_task(bot.close())
+    # Graceful shutdown from Flask thread
+    try:
+        asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+    except Exception as e:
+        logger.error(f"Failed to initiate bot close: {e}")
+        return jsonify({"error": "Failed to initiate restart"}), 500
     return jsonify({"message": "Bot restart initiated"})
 
 # Signal handlers for graceful shutdown
@@ -350,9 +354,12 @@ def signal_handler(signum, frame):
     except Exception as e:
         logger.error(f"Error closing database: {e}")
     
-    # Close bot
-    if bot.is_ready():
-        asyncio.create_task(bot.close())
+    # Close bot safely from signal handler
+    try:
+        if bot.is_ready():
+            asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+    except Exception as e:
+        logger.error(f"Failed to schedule bot close: {e}")
     
     sys.exit(0)
 

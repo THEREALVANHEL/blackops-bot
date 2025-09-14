@@ -171,7 +171,7 @@ class ErrorHandler(commands.Cog):
             if hasattr(interaction, 'channel') and interaction.channel:
                 try:
                     await interaction.channel.send(embed=embed, delete_after=10)
-                except:
+                except Exception:
                     pass  # Give up if we can't send anywhere
     
     async def handle_unexpected_error(self, error, ctx=None, interaction=None):
@@ -228,12 +228,12 @@ class ErrorHandler(commands.Cog):
             if ctx:
                 try:
                     await ctx.send(embed=user_embed, delete_after=30)
-                except:
+                except Exception:
                     pass
             elif interaction and not interaction.response.is_done():
                 try:
                     await interaction.response.send_message(embed=user_embed, ephemeral=True)
-                except:
+                except Exception:
                     pass
                     
         except Exception as handler_error:
