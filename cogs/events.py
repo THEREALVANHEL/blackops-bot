@@ -84,11 +84,49 @@ class EventJoinView(discord.ui.View):
         if event.get("co_host_id"):
             embed.add_field(name="🤝 Co-Host", value=f"<@{event['co_host_id']}>", inline=True)
         
+        if event.get("medic_id"):
+            embed.add_field(name="🏥 Medic", value=f"<@{event['medic_id']}>", inline=True)
+        
+        if event.get("guide_id"):
+            embed.add_field(name="🗺️ Guide", value=f"<@{event['guide_id']}>", inline=True)
+        
         embed.add_field(name="⏰ Start Time", value=f"<t:{int(event['start_time'])}:F>", inline=False)
         embed.add_field(name="🕒 Time Until Start", value=f"<t:{int(event['start_time'])}:R>", inline=True)
         embed.add_field(name="👥 Participants", value=f"{len(event['participants'])}/{event.get('max_participants', 50)}", inline=True)
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="End Event", style=discord.ButtonStyle.danger, emoji="🛑")
+    async def end_event(self, interaction: discord.Interaction, button: discord.ui.Button):
+        event = active_events.get(self.event_id)
+        if not event:
+            await interaction.response.send_message("❌ This event is no longer active!", ephemeral=True)
+            return
+        
+        # Check if user is host or co-host
+        if interaction.user.id != event["host_id"] and interaction.user.id != event.get("co_host_id"):
+            await interaction.response.send_message("❌ Only the host or co-host can end this event!", ephemeral=True)
+            return
+        
+        # Remove event from active events
+        del active_events[self.event_id]
+        
+        # Create ended event embed
+        embed = discord.Embed(
+            title=f"🛑 Event Ended: {event['title']}",
+            description="This event has been ended by the host.",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.add_field(name="👑 Ended by", value=interaction.user.mention, inline=True)
+        embed.add_field(name="👥 Final Participants", value=f"{len(event['participants'])}", inline=True)
+        
+        # Disable all buttons
+        for item in self.children:
+            item.disabled = True
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.followup.send("✅ Event ended successfully!", ephemeral=True)
 
     def create_event_embed(self, event: dict, guild: discord.Guild) -> discord.Embed:
         embed = discord.Embed(
@@ -222,35 +260,48 @@ class Events(commands.Cog):
         # Schedule event start notification
         asyncio.create_task(self._schedule_event_start(event_id, start_timestamp, interaction.channel))
 
-    @app_commands.command(name="gamelog", description="Log a completed game with enhanced details.")
+    @app_commands.command(name="gamelog", description="Log a completed game with simple details.")
     @app_commands.describe(
         game="The name of the game played",
         result="The result of the game (Win/Loss/Draw)",
+        host="Host of the game",
+        co_host="Co-host of the game (optional)",
+        medic="Medic for the game (optional)",
+        guide="Guide for the game (optional)",
         participants="Participants in the game",
-        image="Optional image URL of game result",
-        notes="Optional additional notes about the game"
+        notes="Optional additional notes about the game",
+        image="Optional image URL of game result"
     )
     @permissions.is_any_host()
-    async def gamelog(self, interaction: discord.Interaction, game: str, result: str, participants: str, image: str = None, notes: str = None):
+    async def gamelog(self, interaction: discord.Interaction, game: str, result: str, host: discord.Member, participants: str, co_host: discord.Member = None, medic: discord.Member = None, guide: discord.Member = None, notes: str = None, image: str = None):
+        
+        # Result with emoji
+        result_emoji = "🏆" if "win" in result.lower() else "❌" if "loss" in result.lower() else "🤝"
         
         embed = discord.Embed(
-            title=f"🎮 Game Log: {game}",
+            title=f"🎮 {game} - {result_emoji} {result.upper()}",
             color=self._get_result_color(result),
             timestamp=discord.utils.utcnow()
         )
         
-        # Result with emoji
-        result_emoji = "🏆" if "win" in result.lower() else "❌" if "loss" in result.lower() else "🤝"
-        embed.add_field(name="📊 Result", value=f"{result_emoji} **{result.upper()}**", inline=True)
-        embed.add_field(name="🎯 Game", value=f"`{game}`", inline=True)
-        embed.add_field(name="⏰ Date", value=f"<t:{int(time.time())}:F>", inline=True)
+        # Simple layout with essential info
+        embed.add_field(name="👑 Host", value=host.mention, inline=True)
+        
+        if co_host:
+            embed.add_field(name="🤝 Co-Host", value=co_host.mention, inline=True)
+        
+        if medic:
+            embed.add_field(name="🏥 Medic", value=medic.mention, inline=True)
+        
+        if guide:
+            embed.add_field(name="🗺️ Guide", value=guide.mention, inline=True)
         
         embed.add_field(name="👥 Participants", value=participants, inline=False)
         
         if notes:
             embed.add_field(name="📝 Notes", value=notes, inline=False)
         
-        # Allow dropping an image instead of requiring URL
+        # Handle image attachment
         try:
             if interaction.attachments and not image:
                 attachment = interaction.attachments[0]
@@ -262,8 +313,7 @@ class Events(commands.Cog):
             if image:
                 embed.add_field(name="🖼️ Image", value=f"[View Image]({image})", inline=False)
         
-        embed.set_author(name=f"Logged by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
-        embed.set_footer(text="Game Statistics • BlackOps Gaming")
+        embed.set_footer(text=f"Logged by {interaction.user.display_name}")
         
         await interaction.response.send_message(embed=embed)
 
