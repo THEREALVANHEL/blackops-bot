@@ -193,61 +193,59 @@ class SetupView(discord.ui.View):
 
     @discord.ui.button(label="🎉 Welcome/Leave", style=discord.ButtonStyle.green, emoji="🎉")
     async def setup_welcome(self, interaction: discord.Interaction, button: discord.ui.Button):
-        class WelcomeModal(discord.ui.Modal):
+        class WelcomePicker(discord.ui.View):
             def __init__(self):
-                super().__init__(title="Setup Welcome/Leave System")
-            
-            welcome_channel = discord.ui.TextInput(
-                label="Welcome Channel",
-                placeholder="#welcome or channel ID",
-                required=True
-            )
-            
-            welcome_message = discord.ui.TextInput(
-                label="Welcome Message",
-                placeholder="Welcome {user} to {server}! Use {user} and {server} placeholders",
-                required=True,
-                style=discord.TextStyle.paragraph
-            )
-            
-            leave_message = discord.ui.TextInput(
-                label="Leave Message", 
-                placeholder="Goodbye {user}! They were with us for {days} days",
-                required=True,
-                style=discord.TextStyle.paragraph
-            )
-            
-            async def on_submit(self, modal_interaction):
-                try:
-                    if self.welcome_channel.value.startswith('<#'):
-                        channel_id = int(self.welcome_channel.value[2:-1])
-                    else:
-                        channel_id = int(self.welcome_channel.value)
-                    
-                    database.db.update_guild_data(interaction.guild.id, {
-                        "settings.welcome_channel": channel_id,
-                        "settings.welcome_message": self.welcome_message.value,
-                        "settings.leave_message": self.leave_message.value,
-                        "settings.welcome_enabled": True,
-                        "settings.join_gif": "https://cdn.discordapp.com/attachments/1370993458700877964/1375089295257370624/image0.gif",
-                        "settings.leave_gif": "https://cdn.discordapp.com/attachments/1351560015483240459/1368427641564299314/image0.gif"
+                super().__init__(timeout=180)
+                self.channel_id = None
+                self.add_item(self.ChannelSelect(self))
+                self.add_item(self.WelcomeMessage(self))
+                self.add_item(self.LeaveMessage(self))
+                self.add_item(self.SaveButton(self))
+
+            class ChannelSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Welcome Channel", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    self.parent.channel_id = self.values[0].id
+                    await inter.response.defer()
+
+            class WelcomeMessage(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Set Welcome Message", style=discord.ButtonStyle.secondary)
+                    self.parent = parent
+                    self.parent.welcome_text = "Welcome {user} to {server}!"
+                async def callback(self, inter: discord.Interaction):
+                    await inter.response.send_message("Reply with your welcome message (use {user} and {server}).", ephemeral=True)
+
+            class LeaveMessage(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Set Leave Message", style=discord.ButtonStyle.secondary)
+                    self.parent = parent
+                    self.parent.leave_text = "Goodbye {user}! They were with us for {days} days"
+                async def callback(self, inter: discord.Interaction):
+                    await inter.response.send_message("Reply with your leave message (use {user} and {days}).", ephemeral=True)
+
+            class SaveButton(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Save", style=discord.ButtonStyle.success)
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    if not self.parent.channel_id:
+                        await inter.response.send_message("❌ Select a channel first.", ephemeral=True)
+                        return
+                    database.db.update_guild_data(inter.guild.id, {
+                        "settings.welcome_channel": self.parent.channel_id,
+                        "settings.welcome_message": getattr(self.parent, 'welcome_text', "Welcome {user} to {server}!"),
+                        "settings.leave_message": getattr(self.parent, 'leave_text', "Goodbye {user}! They were with us for {days} days"),
+                        "settings.welcome_enabled": True
                     })
-                    
-                    embed = discord.Embed(
-                        title="✅ Welcome/Leave System Configured",
-                        description="Welcome and leave messages are now active!",
-                        color=discord.Color.green()
-                    )
-                    embed.add_field(name="Channel", value=f"<#{channel_id}>", inline=True)
-                    embed.add_field(name="Welcome Message", value=self.welcome_message.value[:100] + "...", inline=False)
-                    embed.add_field(name="Leave Message", value=self.leave_message.value[:100] + "...", inline=False)
-                    
-                    await modal_interaction.response.send_message(embed=embed, ephemeral=True)
-                    
-                except Exception as e:
-                    await modal_interaction.response.send_message(f"❌ Error setting up welcome/leave: {str(e)}", ephemeral=True)
-        
-        await interaction.response.send_modal(WelcomeModal())
+                    embed = discord.Embed(title="✅ Welcome/Leave Configured", color=discord.Color.green())
+                    embed.add_field(name="Channel", value=f"<#{self.parent.channel_id}>", inline=True)
+                    await inter.response.edit_message(embed=embed, view=None)
+
+        embed = discord.Embed(title="🎉 Configure Welcome/Leave", description="Pick the channel. Then set optional messages.", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, view=WelcomePicker(), ephemeral=True)
 
     @discord.ui.button(label="🎮 Economy & Levels", style=discord.ButtonStyle.primary, emoji="🎮")
     async def setup_economy(self, interaction: discord.Interaction, button: discord.ui.Button):

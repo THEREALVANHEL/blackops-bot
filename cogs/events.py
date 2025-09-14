@@ -208,6 +208,15 @@ class Events(commands.Cog):
         # Create view with join/leave buttons
         view = EventJoinView(event_id, event_data)
         
+        # Support dropped image attachments for the announcement image
+        try:
+            if interaction.attachments:
+                att = interaction.attachments[0]
+                if att.content_type and att.content_type.startswith('image/'):
+                    embed.set_image(url=att.url)
+        except Exception:
+            pass
+
         await interaction.response.send_message("@everyone", embed=embed, view=view)
         
         # Schedule event start notification
