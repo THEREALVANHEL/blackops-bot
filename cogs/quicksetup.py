@@ -77,58 +77,66 @@ class SetupView(discord.ui.View):
 
     @discord.ui.button(label="🎫 Ticket System", style=discord.ButtonStyle.secondary, emoji="🎫")
     async def setup_tickets(self, interaction: discord.Interaction, button: discord.ui.Button):
-        class TicketModal(discord.ui.Modal):
+        class TicketSetupPicker(discord.ui.View):
             def __init__(self):
-                super().__init__(title="Setup Ticket System")
-            
-            ticket_category = discord.ui.TextInput(
-                label="Ticket Category ID",
-                placeholder="Category where tickets will be created",
-                required=True
-            )
-            
-            transcript_channel = discord.ui.TextInput(
-                label="Transcript Channel",
-                placeholder="Channel to send ticket transcripts",
-                required=False
-            )
-            
-            support_role = discord.ui.TextInput(
-                label="Support Role ID", 
-                placeholder="Role that can view all tickets",
-                required=False
-            )
-            
-            async def on_submit(self, modal_interaction):
-                try:
-                    category_id = int(self.ticket_category.value)
-                    transcript_id = int(self.transcript_channel.value) if self.transcript_channel.value else None
-                    support_role_id = int(self.support_role.value) if self.support_role.value else None
-                    
+                super().__init__(timeout=180)
+                self.category_id = None
+                self.transcript_id = None
+                self.support_role_id = None
+                self.add_item(self.CategorySelect(self))
+                self.add_item(self.TranscriptSelect(self))
+                self.add_item(self.RoleSelect(self))
+                self.add_item(self.SaveButton(self))
+
+            class CategorySelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Ticket Category", channel_types=[discord.ChannelType.category])
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    self.parent.category_id = self.values[0].id
+                    await inter.response.defer()
+
+            class TranscriptSelect(discord.ui.ChannelSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Transcript Channel (optional)", channel_types=[discord.ChannelType.text])
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    self.parent.transcript_id = self.values[0].id
+                    await inter.response.defer()
+
+            class RoleSelect(discord.ui.RoleSelect):
+                def __init__(self, parent):
+                    super().__init__(placeholder="Select Support Role (optional)", min_values=0, max_values=1)
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    if self.values:
+                        self.parent.support_role_id = self.values[0].id
+                    await inter.response.defer()
+
+            class SaveButton(discord.ui.Button):
+                def __init__(self, parent):
+                    super().__init__(label="Save", style=discord.ButtonStyle.success)
+                    self.parent = parent
+                async def callback(self, inter: discord.Interaction):
+                    if not self.parent.category_id:
+                        await inter.response.send_message("❌ Please select a category.", ephemeral=True)
+                        return
                     database.db.update_guild_data(interaction.guild.id, {
-                        "settings.ticket_category": category_id,
-                        "settings.transcript_channel": transcript_id,
-                        "settings.support_role": support_role_id,
+                        "settings.ticket_category": self.parent.category_id,
+                        "settings.transcript_channel": self.parent.transcript_id,
+                        "settings.support_role": self.parent.support_role_id,
                         "settings.tickets_enabled": True
                     })
-                    
-                    embed = discord.Embed(
-                        title="✅ Ticket System Configured",
-                        description="Ticket system has been set up successfully!",
-                        color=discord.Color.green()
-                    )
-                    embed.add_field(name="Category", value=f"<#{category_id}>", inline=True)
-                    if transcript_id:
-                        embed.add_field(name="Transcripts", value=f"<#{transcript_id}>", inline=True)
-                    if support_role_id:
-                        embed.add_field(name="Support Role", value=f"<@&{support_role_id}>", inline=True)
-                    
-                    await modal_interaction.response.send_message(embed=embed, ephemeral=True)
-                    
-                except Exception as e:
-                    await modal_interaction.response.send_message(f"❌ Error setting up tickets: {str(e)}", ephemeral=True)
-        
-        await interaction.response.send_modal(TicketModal())
+                    embed = discord.Embed(title="✅ Ticket System Configured", color=discord.Color.green())
+                    embed.add_field(name="Category", value=f"<#{self.parent.category_id}>", inline=True)
+                    if self.parent.transcript_id:
+                        embed.add_field(name="Transcripts", value=f"<#{self.parent.transcript_id}>", inline=True)
+                    if self.parent.support_role_id:
+                        embed.add_field(name="Support Role", value=f"<@&{self.parent.support_role_id}>", inline=True)
+                    await inter.response.edit_message(embed=embed, view=None)
+
+        embed = discord.Embed(title="🎫 Configure Ticket System", description="Pick a category, optional transcript channel, and support role.", color=discord.Color.blurple())
+        await interaction.response.send_message(embed=embed, view=TicketSetupPicker(), ephemeral=True)
 
     @discord.ui.button(label="⭐ Starboard", style=discord.ButtonStyle.secondary, emoji="⭐")
     async def setup_starboard(self, interaction: discord.Interaction, button: discord.ui.Button):
